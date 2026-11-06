@@ -1,0 +1,129 @@
+
+
+import hashlib
+import json
+from datetime import datetime, timezone
+
+from db import get_db_connection
+
+
+def record_audit_event(
+    user_id,
+    document_id,
+    action,
+    result,
+    reason,
+    ip_address
+):
+    connection = None
+    cursor = None
+    lock_acquired = False
+
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor(dictionary=True)
+
+        # Serialize audit writes so two requests don't use
+        # the same previous hash.
+        cursor.execute(
+            "SELECT GET_LOCK(%s, 10) AS acquired",
+            ("trustworld_audit_chain",)
+        )
+
+        lock_result = cursor.fetchone()
+
+        if not lock_result or lock_result["acquired"] != 1:
+            raise RuntimeError("Could not acquire audit log lock")
+
+        lock_acquired = True
+
+        # Find the most recent audit hash
+        cursor.execute("""
+            SELECT current_hash
+            FROM audit_logs
+            ORDER BY log_id DESC
+            LIMIT 1
+        """)
+
+        previous_record = cursor.fetchone()
+
+        previous_hash = (
+            previous_record["current_hash"]
+            if previous_record
+            else "0" * 64
+        )
+
+        # Use one timestamp for both the stored event and its hash
+        event_time = datetime.now(timezone.utc).replace(tzinfo=None)
+
+        event_data = {
+            "user_id": user_id,
+            "document_id": document_id,
+            "action": action,
+            "result": result,
+            "reason": reason,
+            "ip_address": ip_address,
+            "timestamp": event_time.isoformat(timespec="microseconds"),
+            "previous_hash": previous_hash
+        }
+
+        # Convert event details into consistent JSON
+        event_json = json.dumps(
+            event_data,
+            sort_keys=True,
+            separators=(",", ":")
+        )
+
+        # Generate SHA-256 hash
+        current_hash = hashlib.sha256(
+            event_json.encode("utf-8")
+        ).hexdigest()
+
+        # Insert the audit event
+        cursor.execute("""
+            INSERT INTO audit_logs (
+                user_id,
+                document_id,
+                action,
+                result,
+                reason,
+                ip_address,
+                timestamp,
+                previous_hash,
+                current_hash
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (
+            user_id,
+            document_id,
+            action,
+            result,
+            reason,
+            ip_address,
+            event_time,
+            previous_hash,
+            current_hash
+        ))
+
+        connection.commit()
+
+    except Exception:
+        if connection:
+            connection.rollback()
+        raise
+
+    finally:
+        if cursor and lock_acquired:
+            try:
+                cursor.execute(
+                    "SELECT RELEASE_LOCK(%s)",
+                    ("trustworld_audit_chain",)
+                )
+            except Exception:
+                pass
+
+        if cursor:
+            cursor.close()
+
+        if connection and connection.is_connected():
+            connection.close()
