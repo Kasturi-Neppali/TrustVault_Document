@@ -45,22 +45,24 @@ def generate_file_hash(file_path):
 
 def save_uploaded_file(uploaded_file, upload_folder):
 
-    original_name = secure_filename(
-        uploaded_file.filename
-    )
+    if not uploaded_file or not uploaded_file.filename:
+        raise ValueError("No file was selected.")
+
+    original_name = secure_filename(uploaded_file.filename)
+
+    if not original_name or "." not in original_name:
+        raise ValueError("Invalid filename.")
+
+    if not allowed_file(original_name):
+        raise ValueError("File type is not allowed.")
 
     extension = original_name.rsplit(".", 1)[1].lower()
 
-    unique_filename = (
-        f"{uuid.uuid4().hex}.{extension}"
-    )
+    unique_filename = f"{uuid.uuid4().hex}.{extension}"
 
     os.makedirs(upload_folder, exist_ok=True)
 
-    file_path = os.path.join(
-        upload_folder,
-        unique_filename
-    )
+    file_path = os.path.join(upload_folder, unique_filename)
 
     uploaded_file.save(file_path)
 

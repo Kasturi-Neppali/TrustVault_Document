@@ -78,3 +78,17 @@ export const revokePermission = async (permissionId) => {
 
     return response.data;
 };
+
+// Get sharing permissions for a document
+export const getDocumentPermissions = async (documentId) => {
+    const response = await api.get(
+        `/owner/documents/${documentId}/permissions`
+    );
+
+    return response.data;
+};
+
+export const getOwnerActivity = async () => {
+    const response = await api.get("/owner/activity");
+    return response.data;
+};

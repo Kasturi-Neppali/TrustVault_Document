@@ -866,3 +866,22 @@ body {
         font-size: 22px;
     }
 }
+
+.permission-active {
+    color: #15803d;
+    font-weight: bold;
+}
+
+.permission-inactive {
+    color: #dc2626;
+    font-weight: bold;
+}
+.activity-allowed {
+    color: #15803d;
+    font-weight: bold;
+}
+
+.activity-denied {
+    color: #dc2626;
+    font-weight: bold;
+}

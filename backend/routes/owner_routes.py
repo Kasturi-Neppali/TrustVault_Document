@@ -595,3 +595,143 @@ def revoke_permission(permission_id):
 
         if connection and connection.is_connected():
             connection.close()
+
+
+# Get sharing permissions for an Owner's document
+@owner_bp.route(
+    "/documents/<int:document_id>/permissions",
+    methods=["GET"]
+)
+@role_required("OWNER")
+def get_document_permissions(document_id):
+
+    connection = None
+    cursor = None
+
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor(dictionary=True)
+
+        owner_id = g.current_user["user_id"]
+
+        # Verify that this document belongs to the logged-in Owner
+        cursor.execute("""
+            SELECT document_id
+            FROM documents
+            WHERE document_id = %s
+              AND owner_id = %s
+              AND is_deleted = FALSE
+        """, (document_id, owner_id))
+
+        document = cursor.fetchone()
+
+        if not document:
+            return jsonify({
+                "success": False,
+                "message": "Document not found"
+            }), 404
+
+        # Retrieve sharing permissions
+        cursor.execute("""
+            SELECT
+                p.permission_id,
+                p.viewer_id,
+                u.name AS viewer_name,
+                u.email AS viewer_email,
+                p.can_view,
+                p.can_download,
+                p.granted_at,
+                p.expires_at,
+                p.revoked_at
+            FROM document_permissions p
+            JOIN users u
+                ON p.viewer_id = u.user_id
+            WHERE p.document_id = %s
+            ORDER BY p.granted_at DESC
+        """, (document_id,))
+
+        permissions = cursor.fetchall()
+
+        # Convert dates into JSON-compatible strings
+        for permission in permissions:
+            for field in ["granted_at", "expires_at", "revoked_at"]:
+                if permission[field]:
+                    permission[field] = permission[field].isoformat()
+
+        return jsonify({
+            "success": True,
+            "permissions": permissions
+        }), 200
+
+    except Exception as error:
+        print("Permission retrieval error:", error)
+
+        return jsonify({
+            "success": False,
+            "message": "Unable to retrieve permissions"
+        }), 500
+
+    finally:
+        if cursor:
+            cursor.close()
+
+        if connection and connection.is_connected():
+            connection.close()
+
+@owner_bp.route("/activity", methods=["GET"])
+@role_required("OWNER")
+def get_owner_activity():
+
+    connection = get_db_connection()
+    cursor = connection.cursor(dictionary=True)
+
+    try:
+        owner_id = g.current_user["user_id"]
+
+        query = """
+            SELECT
+                al.log_id,
+                al.document_id,
+                d.document_name,
+                al.user_id,
+                u.name AS user_name,
+                u.email AS user_email,
+                al.action,
+                al.result,
+                al.reason,
+                al.ip_address,
+                al.timestamp
+            FROM audit_logs al
+            INNER JOIN documents d
+                ON al.document_id = d.document_id
+            LEFT JOIN users u
+                ON al.user_id = u.user_id
+            WHERE d.owner_id = %s
+            ORDER BY al.log_id DESC
+            LIMIT 200
+        """
+
+        cursor.execute(query, (owner_id,))
+        activities = cursor.fetchall()
+
+        for activity in activities:
+            if activity["timestamp"]:
+                activity["timestamp"] = (
+                    activity["timestamp"].isoformat()
+                )
+
+        return jsonify({
+            "message": "Owner activity retrieved successfully.",
+            "activities": activities
+        }), 200
+
+    except Exception as e:
+        print("Owner activity error:", str(e))
+
+        return jsonify({
+            "message": "Unable to retrieve document activity."
+        }), 500
+
+    finally:
+        cursor.close()
+        connection.close()

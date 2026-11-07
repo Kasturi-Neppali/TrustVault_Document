@@ -2,4 +2,7 @@
 .venv/
 __pycache__/
 .env
+instance/private_uploads/
+node_modules/
+dist/
 *.pyc
