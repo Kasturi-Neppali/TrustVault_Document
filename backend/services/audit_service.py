@@ -44,7 +44,7 @@ def record_audit_event(
         )
 
         # Use one timestamp for both the stored event and its hash
-        event_time = datetime.now(timezone.utc).replace(tzinfo=None)
+        event_time = datetime.now(timezone.utc)
 
         event_data = {
             "user_id": user_id,

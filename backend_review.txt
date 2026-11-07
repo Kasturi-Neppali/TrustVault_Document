@@ -1,0 +1,3103 @@
+
+
+========================================
+FILE: C:\Users\kastu\OneDrive\Desktop\TrustWorld\backend\app.py
+========================================
+
+
+
+import os
+from datetime import timedelta
+
+from flask import Flask, jsonify
+from flask_jwt_extended import JWTManager
+from flask_cors import CORS
+from dotenv import load_dotenv
+
+from routes.auth_routes import auth_bp
+from routes.role_routes import role_bp
+from routes.admin_routes import admin_bp
+from routes.owner_routes import owner_bp
+from routes.viewer_routes import viewer_bp
+
+
+# Load environment variables from backend/.env
+load_dotenv()
+
+app = Flask(__name__)
+
+
+# --------------------------------------------------
+# APPLICATION CONFIGURATION
+# --------------------------------------------------
+
+# JWT configuration
+jwt_secret = os.getenv("JWT_SECRET_KEY")
+
+if not jwt_secret:
+    raise RuntimeError(
+        "JWT_SECRET_KEY is missing from the backend .env file."
+    )
+
+app.config["JWT_SECRET_KEY"] = jwt_secret
+
+# JWT access token expires after 30 minutes
+app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(minutes=30)
+
+# Maximum upload size: 25 MB
+app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024
+
+
+# --------------------------------------------------
+# CORS CONFIGURATION
+# --------------------------------------------------
+
+# Supports multiple frontend URLs separated by commas.
+# Example:
+# CORS_ORIGINS=http://localhost:5173,https://your-app.vercel.app
+
+allowed_origins = os.getenv(
+    "CORS_ORIGINS",
+    "http://localhost:5173"
+)
+
+allowed_origins = [
+    origin.strip()
+    for origin in allowed_origins.split(",")
+    if origin.strip()
+]
+
+CORS(
+    app,
+    origins=allowed_origins,
+    supports_credentials=True
+)
+
+
+# --------------------------------------------------
+# INITIALIZE JWT
+# --------------------------------------------------
+
+jwt = JWTManager(app)
+
+
+# --------------------------------------------------
+# REGISTER BLUEPRINTS
+# --------------------------------------------------
+
+app.register_blueprint(auth_bp)
+app.register_blueprint(role_bp)
+app.register_blueprint(admin_bp)
+app.register_blueprint(owner_bp)
+app.register_blueprint(viewer_bp)
+
+
+# --------------------------------------------------
+# HOME ROUTE
+# --------------------------------------------------
+
+@app.route("/", methods=["GET"])
+def home():
+
+    return jsonify({
+        "message": "Welcome to TrustWorld API",
+        "status": "success"
+    }), 200
+
+
+# --------------------------------------------------
+# HEALTH CHECK ROUTE
+# --------------------------------------------------
+
+@app.route("/api/health", methods=["GET"])
+def health():
+
+    return jsonify({
+        "status": "running",
+        "project": "TrustWorld"
+    }), 200
+
+
+# --------------------------------------------------
+# FILE SIZE ERROR HANDLER
+# --------------------------------------------------
+
+@app.errorhandler(413)
+def file_too_large(error):
+
+    return jsonify({
+        "success": False,
+        "message": "File size exceeds the maximum allowed limit of 25 MB."
+    }), 413
+
+
+# --------------------------------------------------
+# RUN APPLICATION
+# --------------------------------------------------
+
+if __name__ == "__main__":
+
+    debug_mode = os.getenv(
+        "FLASK_DEBUG",
+        "false"
+    ).lower() == "true"
+
+    port = int(os.getenv("PORT", 5000))
+
+    app.run(
+        host="0.0.0.0",
+        port=port,
+        debug=debug_mode
+    )
+
+
+
+========================================
+FILE: C:\Users\kastu\OneDrive\Desktop\TrustWorld\backend\db.py
+========================================
+
+
+
+import os
+import psycopg
+from psycopg.rows import dict_row
+from dotenv import load_dotenv
+
+load_dotenv()
+
+
+def get_db_connection():
+    database_url = os.getenv("DATABASE_URL")
+
+    if not database_url:
+        raise RuntimeError("DATABASE_URL is not configured in the .env file")
+
+    connection = psycopg.connect(
+        database_url,
+        row_factory=dict_row
+    )
+
+    return connection
+
+
+
+========================================
+FILE: C:\Users\kastu\OneDrive\Desktop\TrustWorld\backend\requirements.txt
+========================================
+
+
+
+Flask
+Flask-Cors
+Flask-JWT-Extended
+bcrypt
+python-dotenv
+psycopg[binary]
+supabase
+gunicorn
+
+
+========================================
+FILE: C:\Users\kastu\OneDrive\Desktop\TrustWorld\backend\test_admin_login.py
+========================================
+
+
+import getpass
+import requests
+
+BASE_URL = "http://127.0.0.1:5000"
+
+# Step 1: Get Admin credentials
+email = input("Enter Admin email: ").strip()
+password = getpass.getpass("Enter Admin password: ")
+
+try:
+    # Step 2: Login
+    login_response = requests.post(
+        f"{BASE_URL}/api/auth/login",
+        json={
+            "email": email,
+            "password": password
+        },
+        timeout=15
+    )
+
+    print("\nLogin status:", login_response.status_code)
+
+    if login_response.status_code != 200:
+        print("Login failed:", login_response.text)
+        raise SystemExit
+
+    # Step 3: Extract JWT token
+    login_data = login_response.json()
+    token = login_data.get("access_token")
+
+    if not token:
+        print("Login succeeded, but access_token was not returned.")
+        print("Response keys:", list(login_data.keys()))
+        raise SystemExit
+
+    print("Admin authentication successful!")
+    print("JWT token received.")
+
+    # Step 4: Access protected Admin dashboard
+    headers = {
+        "Authorization": f"Bearer {token}"
+    }
+
+    dashboard_response = requests.get(
+        f"{BASE_URL}/api/admin/dashboard",
+        headers=headers,
+        timeout=15
+    )
+
+    print("\nAdmin dashboard status:", dashboard_response.status_code)
+
+    if dashboard_response.status_code == 200:
+        print("Admin dashboard access successful!")
+        print("Dashboard information:")
+        print(dashboard_response.json())
+
+    else:
+        print("Dashboard access failed.")
+        print(dashboard_response.text)
+
+except requests.exceptions.RequestException as error:
+    print("Connection error:", error)
+
+
+
+========================================
+FILE: C:\Users\kastu\OneDrive\Desktop\TrustWorld\backend\test_db_connection.py
+========================================
+
+from db import get_db_connection
+
+
+try:
+    connection = get_db_connection()
+
+    print("PostgreSQL connection successful!")
+
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT version();")
+        result = cursor.fetchone()
+
+        print("Database version:")
+        print(result["version"])
+
+    connection.close()
+
+except Exception as error:
+    print("Database connection failed.")
+    print(error)
+
+
+========================================
+FILE: C:\Users\kastu\OneDrive\Desktop\TrustWorld\backend\middleware\permissions.py
+========================================
+
+
+from functools import wraps
+
+from flask import jsonify, g
+from flask_jwt_extended import (
+    verify_jwt_in_request,
+    get_jwt_identity
+)
+
+from db import get_db_connection
+
+
+def role_required(*allowed_roles):
+
+    def decorator(function):
+
+        @wraps(function)
+        def wrapper(*args, **kwargs):
+
+            connection = None
+            cursor = None
+
+            try:
+                # Step 1: Verify JWT token
+                verify_jwt_in_request()
+
+                # Step 2: Get logged-in user ID
+                user_id = get_jwt_identity()
+
+                # Step 3: Connect to database
+                connection = get_db_connection()
+                cursor = connection.cursor()
+
+                # Step 4: Get current role and account status
+                cursor.execute(
+                    """
+                    SELECT
+                        users.user_id,
+                        users.name,
+                        users.email,
+                        users.status,
+                        roles.role_name
+                    FROM users
+                    JOIN roles
+                    ON users.role_id = roles.role_id
+                    WHERE users.user_id = %s
+                    """,
+                    (user_id,)
+                )
+
+                user = cursor.fetchone()
+
+                # Step 5: Check user existence
+                if not user:
+                    return jsonify({
+                        "message": "User account not found"
+                    }), 401
+
+                # Step 6: Check account status
+                if user["status"] != "ACTIVE":
+                    return jsonify({
+                        "message": "Account is not active"
+                    }), 403
+
+                # Step 7: Check user role
+                if user["role_name"] not in allowed_roles:
+                    return jsonify({
+                        "message": "You are not authorized to access this resource"
+                    }), 403
+
+                # Step 8: Store user details for the route
+                g.current_user = user
+
+            except Exception as error:
+                from flask_jwt_extended.exceptions import JWTExtendedException
+
+                if isinstance(error, JWTExtendedException):
+                    return jsonify({
+                        "message": "Invalid or expired authentication token"
+                    }), 401
+
+                print("Authorization error:", error)
+
+                return jsonify({
+                    "message": "Authorization service unavailable"
+                }), 500
+
+            finally:
+                if cursor:
+                    cursor.close()
+
+                if connection and not connection.closed:
+                    connection.close()
+
+            # Step 9: Allow authorized request
+            return function(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
+
+
+
+========================================
+FILE: C:\Users\kastu\OneDrive\Desktop\TrustWorld\backend\routes\admin_routes.py
+========================================
+
+
+
+from flask import Blueprint, jsonify, request, g
+
+from middleware.permissions import role_required
+from db import get_db_connection
+from services.audit_verification import verify_audit_chain
+
+
+admin_bp = Blueprint(
+    "admin",
+    __name__,
+    url_prefix="/api/admin"
+)
+
+
+# --------------------------------------------------
+# ADMIN DASHBOARD
+# --------------------------------------------------
+
+@admin_bp.route("/dashboard", methods=["GET"])
+@role_required("ADMIN")
+def dashboard():
+
+    connection = None
+    cursor = None
+
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor()
+
+        # Total registered users
+        cursor.execute(
+            "SELECT COUNT(*) AS total_users FROM users"
+        )
+        total_users = cursor.fetchone()["total_users"]
+
+        # Total documents
+        cursor.execute(
+            "SELECT COUNT(*) AS total_documents FROM documents"
+        )
+        total_documents = cursor.fetchone()["total_documents"]
+
+        # Failed login attempts
+        cursor.execute(
+            """
+            SELECT COUNT(*) AS failed_logins
+            FROM login_attempts
+            WHERE status = 'FAILURE'
+            """
+        )
+        failed_logins = cursor.fetchone()["failed_logins"]
+
+        # Denied document access attempts
+        cursor.execute(
+            """
+            SELECT COUNT(*) AS denied_access
+            FROM audit_logs
+            WHERE result = 'DENIED'
+            """
+        )
+        denied_access = cursor.fetchone()["denied_access"]
+
+        return jsonify({
+            "total_users": total_users,
+            "total_documents": total_documents,
+            "failed_logins": failed_logins,
+            "denied_access": denied_access
+        }), 200
+
+    except Exception as error:
+        print("Admin dashboard error:", error)
+
+        return jsonify({
+            "message": "Unable to load dashboard"
+        }), 500
+
+    finally:
+        if cursor:
+            cursor.close()
+
+        if connection and not connection.closed:
+            connection.close()
+
+
+# --------------------------------------------------
+# GET ALL USERS / SEARCH USERS
+# --------------------------------------------------
+
+@admin_bp.route("/users", methods=["GET"])
+@role_required("ADMIN")
+def get_users():
+
+    connection = None
+    cursor = None
+
+    try:
+        # Optional search keyword
+        search = request.args.get("search", "").strip()
+
+        connection = get_db_connection()
+        cursor = connection.cursor()
+
+        query = """
+            SELECT
+                users.user_id,
+                users.name,
+                users.email,
+                users.status,
+                users.created_at,
+                roles.role_name
+            FROM users
+            JOIN roles
+            ON users.role_id = roles.role_id
+            WHERE users.name ILIKE %s
+               OR users.email ILIKE %s
+            ORDER BY users.user_id DESC
+        """
+
+        keyword = f"%{search}%"
+
+        cursor.execute(query, (keyword, keyword))
+
+        users = cursor.fetchall()
+
+        return jsonify({
+            "total_users": len(users),
+            "users": users
+        }), 200
+
+    except Exception as error:
+        print("Get users error:", error)
+
+        return jsonify({
+            "message": "Unable to fetch users"
+        }), 500
+
+    finally:
+        if cursor:
+            cursor.close()
+
+        if connection and not connection.closed:
+            connection.close()
+
+
+# --------------------------------------------------
+# UPDATE USER ROLE
+# --------------------------------------------------
+
+@admin_bp.route("/users/<int:user_id>/role", methods=["PATCH"])
+@role_required("ADMIN")
+def update_user_role(user_id):
+
+    data = request.get_json(silent=True) or {}
+
+    new_role = data.get("role", "")
+
+    if not isinstance(new_role, str):
+        return jsonify({
+            "message": "Invalid role format"
+        }), 400
+
+    new_role = new_role.strip().upper()
+
+    # Prevent creation of Admin accounts
+    if new_role not in ["OWNER", "VIEWER"]:
+        return jsonify({
+            "message": "Only OWNER and VIEWER roles can be assigned here"
+        }), 400
+
+    # Prevent Admin from changing their own role
+    if user_id == g.current_user["user_id"]:
+        return jsonify({
+            "message": "You cannot change your own role"
+        }), 403
+
+    connection = None
+    cursor = None
+
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor()
+
+        # Check target user
+        cursor.execute(
+            """
+            SELECT user_id
+            FROM users
+            WHERE user_id = %s
+            """,
+            (user_id,)
+        )
+
+        target_user = cursor.fetchone()
+
+        if not target_user:
+            connection.rollback()
+
+            return jsonify({
+                "message": "User not found"
+            }), 404
+
+        # Get role ID
+        cursor.execute(
+            """
+            SELECT role_id
+            FROM roles
+            WHERE role_name = %s
+            """,
+            (new_role,)
+        )
+
+        role = cursor.fetchone()
+
+        if not role:
+            connection.rollback()
+
+            return jsonify({
+                "message": "Role not found"
+            }), 404
+
+        # Update role
+        cursor.execute(
+            """
+            UPDATE users
+            SET role_id = %s
+            WHERE user_id = %s
+            """,
+            (role["role_id"], user_id)
+        )
+
+        connection.commit()
+
+        return jsonify({
+            "message": "User role updated successfully",
+            "user_id": user_id,
+            "new_role": new_role
+        }), 200
+
+    except Exception as error:
+        if connection and not connection.closed:
+            connection.rollback()
+
+        print("Update user role error:", error)
+
+        return jsonify({
+            "message": "Unable to update user role"
+        }), 500
+
+    finally:
+        if cursor:
+            cursor.close()
+
+        if connection and not connection.closed:
+            connection.close()
+
+
+# --------------------------------------------------
+# UPDATE USER ACCOUNT STATUS
+# --------------------------------------------------
+
+@admin_bp.route("/users/<int:user_id>/status", methods=["PATCH"])
+@role_required("ADMIN")
+def update_user_status(user_id):
+
+    data = request.get_json(silent=True) or {}
+
+    new_status = data.get("status", "")
+
+    if not isinstance(new_status, str):
+        return jsonify({
+            "message": "Invalid account status format"
+        }), 400
+
+    new_status = new_status.strip().upper()
+
+    allowed_statuses = [
+        "ACTIVE",
+        "INACTIVE",
+        "SUSPENDED"
+    ]
+
+    if new_status not in allowed_statuses:
+        return jsonify({
+            "message": "Invalid account status"
+        }), 400
+
+    if user_id == g.current_user["user_id"]:
+        return jsonify({
+            "message": "You cannot change your own account status"
+        }), 403
+
+    connection = None
+    cursor = None
+
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor()
+
+        # Lock the target user row during this transaction
+        cursor.execute(
+            """
+            SELECT
+                users.user_id,
+                users.status,
+                roles.role_name
+            FROM users
+            JOIN roles
+            ON users.role_id = roles.role_id
+            WHERE users.user_id = %s
+            FOR UPDATE
+            """,
+            (user_id,)
+        )
+
+        target_user = cursor.fetchone()
+
+        if not target_user:
+            connection.rollback()
+
+            return jsonify({
+                "message": "User not found"
+            }), 404
+
+        # Protect the last active Admin
+        if (
+            target_user["role_name"] == "ADMIN"
+            and new_status != "ACTIVE"
+            and target_user["status"] == "ACTIVE"
+        ):
+
+            cursor.execute(
+                """
+                SELECT COUNT(*) AS active_admins
+                FROM users
+                JOIN roles
+                ON users.role_id = roles.role_id
+                WHERE roles.role_name = 'ADMIN'
+                  AND users.status = 'ACTIVE'
+                """
+            )
+
+            count = cursor.fetchone()["active_admins"]
+
+            if count <= 1:
+                connection.rollback()
+
+                return jsonify({
+                    "message": "Cannot deactivate the last active Admin"
+                }), 403
+
+        # Update status
+        cursor.execute(
+            """
+            UPDATE users
+            SET status = %s
+            WHERE user_id = %s
+            """,
+            (new_status, user_id)
+        )
+
+        connection.commit()
+
+        return jsonify({
+            "message": "Account status updated successfully",
+            "user_id": user_id,
+            "status": new_status
+        }), 200
+
+    except Exception as error:
+        if connection and not connection.closed:
+            connection.rollback()
+
+        print("Update user status error:", error)
+
+        return jsonify({
+            "message": "Unable to update account status"
+        }), 500
+
+    finally:
+        if cursor:
+            cursor.close()
+
+        if connection and not connection.closed:
+            connection.close()
+
+
+# --------------------------------------------------
+# GET ALL DOCUMENTS
+# ADMIN CAN VIEW METADATA ONLY
+# --------------------------------------------------
+
+@admin_bp.route("/documents", methods=["GET"])
+@role_required("ADMIN")
+def get_all_documents():
+
+    connection = None
+    cursor = None
+
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor()
+
+        cursor.execute(
+            """
+            SELECT
+                documents.document_id,
+                documents.document_name,
+                documents.file_hash,
+                documents.created_at,
+                documents.updated_at,
+                users.user_id AS owner_id,
+                users.name AS owner_name,
+                users.email AS owner_email
+            FROM documents
+            JOIN users
+            ON documents.owner_id = users.user_id
+            ORDER BY documents.created_at DESC
+            """
+        )
+
+        documents = cursor.fetchall()
+
+        return jsonify({
+            "total_documents": len(documents),
+            "documents": documents
+        }), 200
+
+    except Exception as error:
+        print("Get documents error:", error)
+
+        return jsonify({
+            "message": "Unable to fetch documents"
+        }), 500
+
+    finally:
+        if cursor:
+            cursor.close()
+
+        if connection and not connection.closed:
+            connection.close()
+
+
+# --------------------------------------------------
+# VIEW SECURITY LOGS
+# --------------------------------------------------
+
+@admin_bp.route("/security-logs", methods=["GET"])
+@role_required("ADMIN")
+def security_logs():
+
+    connection = None
+    cursor = None
+
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor()
+
+        # Get login history
+        cursor.execute(
+            """
+            SELECT
+                attempt_id,
+                user_id,
+                email,
+                status,
+                ip_address,
+                attempted_at
+            FROM login_attempts
+            ORDER BY attempted_at DESC
+            LIMIT 100
+            """
+        )
+
+        login_history = cursor.fetchall()
+
+        # Get document access history
+        cursor.execute(
+            """
+            SELECT
+                audit_logs.log_id,
+                audit_logs.user_id,
+                users.name AS user_name,
+                audit_logs.document_id,
+                documents.document_name,
+                audit_logs.action,
+                audit_logs.result,
+                audit_logs.reason,
+                audit_logs.ip_address,
+                audit_logs.timestamp
+            FROM audit_logs
+            LEFT JOIN users
+                ON audit_logs.user_id = users.user_id
+            LEFT JOIN documents
+                ON audit_logs.document_id = documents.document_id
+            ORDER BY audit_logs.timestamp DESC
+            LIMIT 100
+            """
+        )
+
+        access_history = cursor.fetchall()
+
+        return jsonify({
+            "login_history": login_history,
+            "document_access_history": access_history
+        }), 200
+
+    except Exception as error:
+        print("Security logs error:", error)
+
+        return jsonify({
+            "message": "Unable to fetch security logs"
+        }), 500
+
+    finally:
+        if cursor:
+            cursor.close()
+
+        if connection and not connection.closed:
+            connection.close()
+
+
+# --------------------------------------------------
+# VERIFY COMPLETE AUDIT HASH CHAIN
+# --------------------------------------------------
+
+@admin_bp.route("/audit/verify", methods=["GET"])
+@role_required("ADMIN")
+def verify_system_audit():
+
+    try:
+        result = verify_audit_chain()
+
+        status_code = 200 if result["valid"] else 409
+
+        return jsonify({
+            "success": result["valid"],
+            "audit_verification": result
+        }), status_code
+
+    except Exception as error:
+
+        print("Admin audit verification error:", error)
+
+        return jsonify({
+            "success": False,
+            "message": "Unable to verify audit records"
+        }), 500
+
+
+
+========================================
+FILE: C:\Users\kastu\OneDrive\Desktop\TrustWorld\backend\routes\auth_routes.py
+========================================
+
+
+
+from flask import Blueprint, request, jsonify
+from db import get_db_connection
+
+import bcrypt
+import traceback
+import re
+
+from flask_jwt_extended import create_access_token
+from datetime import timedelta
+
+
+auth_bp = Blueprint(
+    "auth",
+    __name__,
+    url_prefix="/api/auth"
+)
+
+
+# --------------------------------------------------
+# HELPER: VALIDATE EMAIL
+# --------------------------------------------------
+
+def is_valid_email(email):
+    pattern = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
+    return re.match(pattern, email) is not None
+
+
+# --------------------------------------------------
+# USER REGISTRATION
+# --------------------------------------------------
+
+@auth_bp.route("/register", methods=["POST"])
+def register():
+
+    data = request.get_json(silent=True) or {}
+
+    name = data.get("name", "")
+    email = data.get("email", "")
+    password = data.get("password", "")
+    role_name = data.get("role", "VIEWER")
+
+    # Validate input types
+    if not all(
+        isinstance(value, str)
+        for value in [name, email, password, role_name]
+    ):
+        return jsonify({
+            "message": "Invalid input format."
+        }), 400
+
+    # Clean input
+    name = name.strip()
+    email = email.strip().lower()
+    role_name = role_name.strip().upper()
+
+    # Required fields
+    if not name or not email or not password:
+        return jsonify({
+            "message": "All fields are required."
+        }), 400
+
+    # Validate email
+    if not is_valid_email(email):
+        return jsonify({
+            "message": "Enter a valid email address."
+        }), 400
+
+    # Public registration only allows OWNER and VIEWER
+    if role_name not in ["OWNER", "VIEWER"]:
+        return jsonify({
+            "message": "Invalid registration role. Only OWNER and VIEWER can register."
+        }), 400
+
+    # Validate password length
+    if len(password) < 8:
+        return jsonify({
+            "message": "Password must contain at least 8 characters."
+        }), 400
+
+    # bcrypt supports passwords up to 72 UTF-8 bytes
+    if len(password.encode("utf-8")) > 72:
+        return jsonify({
+            "message": "Password must not exceed 72 UTF-8 bytes."
+        }), 400
+
+    connection = None
+    cursor = None
+
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor()
+
+        # Check whether email already exists
+        cursor.execute(
+            """
+            SELECT user_id
+            FROM users
+            WHERE email = %s
+            """,
+            (email,)
+        )
+
+        existing_user = cursor.fetchone()
+
+        if existing_user:
+            return jsonify({
+                "message": "Email already registered."
+            }), 409
+
+        # Get role ID
+        cursor.execute(
+            """
+            SELECT role_id
+            FROM roles
+            WHERE role_name = %s
+            """,
+            (role_name,)
+        )
+
+        role = cursor.fetchone()
+
+        if not role:
+            return jsonify({
+                "message": "Selected role does not exist."
+            }), 400
+
+        # Hash password
+        password_hash = bcrypt.hashpw(
+            password.encode("utf-8"),
+            bcrypt.gensalt()
+        ).decode("utf-8")
+
+        # Insert new user
+        cursor.execute(
+            """
+            INSERT INTO users
+            (
+                name,
+                email,
+                password_hash,
+                role_id
+            )
+            VALUES (%s, %s, %s, %s)
+            """,
+            (
+                name,
+                email,
+                password_hash,
+                role["role_id"]
+            )
+        )
+
+        connection.commit()
+
+        return jsonify({
+            "success": True,
+            "message": "Registration successful.",
+            "role": role_name
+        }), 201
+
+    except Exception as error:
+
+        if connection and not connection.closed:
+            connection.rollback()
+
+        print("Registration error:", error)
+        traceback.print_exc()
+
+        return jsonify({
+            "success": False,
+            "message": "Registration failed due to a server error."
+        }), 500
+
+    finally:
+
+        if cursor:
+            cursor.close()
+
+        if connection and not connection.closed:
+            connection.close()
+
+
+# --------------------------------------------------
+# USER LOGIN
+# --------------------------------------------------
+
+@auth_bp.route("/login", methods=["POST"])
+def login():
+
+    data = request.get_json(silent=True) or {}
+
+    email = data.get("email", "")
+    password = data.get("password", "")
+
+    # Validate input types
+    if not isinstance(email, str) or not isinstance(password, str):
+        return jsonify({
+            "message": "Invalid input format."
+        }), 400
+
+    email = email.strip().lower()
+
+    if not email or not password:
+        return jsonify({
+            "message": "Email and password are required."
+        }), 400
+
+    if len(password.encode("utf-8")) > 72:
+        return jsonify({
+            "message": "Invalid email or password."
+        }), 401
+
+    ip_address = request.remote_addr
+
+    connection = None
+    cursor = None
+
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor()
+
+        # Find user and role
+        cursor.execute(
+            """
+            SELECT
+                users.user_id,
+                users.name,
+                users.email,
+                users.password_hash,
+                users.status,
+                roles.role_name
+            FROM users
+            JOIN roles
+                ON users.role_id = roles.role_id
+            WHERE users.email = %s
+            """,
+            (email,)
+        )
+
+        user = cursor.fetchone()
+
+        # Verify password safely
+        password_valid = False
+
+        if user:
+            try:
+                password_valid = bcrypt.checkpw(
+                    password.encode("utf-8"),
+                    user["password_hash"].encode("utf-8")
+                )
+
+            except (ValueError, TypeError, AttributeError):
+                password_valid = False
+
+        # Invalid email or password
+        if not user or not password_valid:
+
+            cursor.execute(
+                """
+                INSERT INTO login_attempts
+                (
+                    user_id,
+                    email,
+                    status,
+                    ip_address
+                )
+                VALUES (%s, %s, 'FAILURE', %s)
+                """,
+                (
+                    user["user_id"] if user else None,
+                    email,
+                    ip_address
+                )
+            )
+
+            connection.commit()
+
+            return jsonify({
+                "success": False,
+                "message": "Invalid email or password."
+            }), 401
+
+        # Check account status
+        if user["status"] != "ACTIVE":
+
+            cursor.execute(
+                """
+                INSERT INTO login_attempts
+                (
+                    user_id,
+                    email,
+                    status,
+                    ip_address
+                )
+                VALUES (%s, %s, 'FAILURE', %s)
+                """,
+                (
+                    user["user_id"],
+                    email,
+                    ip_address
+                )
+            )
+
+            connection.commit()
+
+            return jsonify({
+                "success": False,
+                "message": "Account is not active."
+            }), 403
+
+        # Record successful login
+        cursor.execute(
+            """
+            INSERT INTO login_attempts
+            (
+                user_id,
+                email,
+                status,
+                ip_address
+            )
+            VALUES (%s, %s, 'SUCCESS', %s)
+            """,
+            (
+                user["user_id"],
+                email,
+                ip_address
+            )
+        )
+
+        connection.commit()
+
+        # Generate JWT token
+        access_token = create_access_token(
+            identity=str(user["user_id"]),
+            additional_claims={
+                "role": user["role_name"]
+            },
+            expires_delta=timedelta(minutes=30)
+        )
+
+        return jsonify({
+            "success": True,
+            "message": "Login successful.",
+            "access_token": access_token,
+            "user": {
+                "user_id": user["user_id"],
+                "name": user["name"],
+                "email": user["email"],
+                "role": user["role_name"]
+            }
+        }), 200
+
+    except Exception as error:
+
+        if connection and not connection.closed:
+            connection.rollback()
+
+        print("\n===== LOGIN ERROR =====")
+        print(error)
+        traceback.print_exc()
+        print("=======================\n")
+
+        return jsonify({
+            "success": False,
+            "message": "Login failed due to a server error."
+        }), 500
+
+    finally:
+
+        if cursor:
+            cursor.close()
+
+        if connection and not connection.closed:
+            connection.close()
+
+
+
+========================================
+FILE: C:\Users\kastu\OneDrive\Desktop\TrustWorld\backend\routes\owner_routes.py
+========================================
+from datetime import datetime, timezone
+
+from flask import (
+    Blueprint,
+    request,
+    jsonify,
+    current_app,
+    g
+)
+
+from db import get_db_connection
+from middleware.permissions import role_required
+
+from services.file_service import (
+    allowed_file,
+    save_uploaded_file,
+    delete_file
+)
+
+
+owner_bp = Blueprint(
+    "owner",
+    __name__,
+    url_prefix="/api/owner"
+)
+
+
+# --------------------------------------------------
+# UPLOAD DOCUMENT
+# --------------------------------------------------
+
+@owner_bp.route("/documents", methods=["POST"])
+@role_required("OWNER")
+def upload_document():
+
+    uploaded_file = request.files.get("file")
+
+    if not uploaded_file or not uploaded_file.filename:
+        return jsonify({
+            "message": "Please select a document"
+        }), 400
+
+    if not allowed_file(uploaded_file.filename):
+        return jsonify({
+            "message": "Unsupported file type"
+        }), 400
+
+    file_info = None
+    connection = None
+    cursor = None
+
+    try:
+        file_info = save_uploaded_file(uploaded_file)
+
+        connection = get_db_connection()
+        cursor = connection.cursor()
+
+        # Insert document metadata into PostgreSQL
+        cursor.execute(
+            """
+            INSERT INTO documents
+            (
+                owner_id,
+                document_name,
+                storage_path,
+                file_hash
+            )
+            VALUES (%s, %s, %s, %s)
+            RETURNING document_id
+            """,
+            (
+                g.current_user["user_id"],
+                file_info["original_name"],
+                file_info["storage_name"],
+                file_info["file_hash"]
+            )
+        )
+
+        document_id = cursor.fetchone()["document_id"]
+
+        connection.commit()
+
+        return jsonify({
+            "message": "Document uploaded successfully",
+            "document_id": document_id,
+            "document_name": file_info["original_name"],
+            "file_hash": file_info["file_hash"]
+        }), 201
+
+    except Exception as error:
+
+        if connection and not connection.closed:
+            connection.rollback()
+
+        print("Document upload error:", error)
+
+        # Remove the uploaded cloud object if the database operation fails.
+        if file_info and file_info.get("storage_path"):
+            try:
+                delete_file(file_info["storage_path"])
+            except Exception as cleanup_error:
+                print("Supabase cleanup error:", cleanup_error)
+
+        return jsonify({
+            "message": "Document upload failed"
+        }), 500
+
+    finally:
+        if cursor:
+            cursor.close()
+
+        if connection and not connection.closed:
+            connection.close()
+
+
+# --------------------------------------------------
+# GET OWNER DOCUMENTS
+# --------------------------------------------------
+
+@owner_bp.route("/documents", methods=["GET"])
+@role_required("OWNER")
+def get_my_documents():
+
+    connection = None
+    cursor = None
+
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor()
+
+        cursor.execute(
+            """
+            SELECT
+                document_id,
+                document_name,
+                file_hash,
+                created_at,
+                updated_at
+            FROM documents
+            WHERE owner_id = %s
+              AND is_deleted = FALSE
+            ORDER BY created_at DESC
+            """,
+            (g.current_user["user_id"],)
+        )
+
+        documents = cursor.fetchall()
+
+        return jsonify({
+            "total_documents": len(documents),
+            "documents": documents
+        }), 200
+
+    except Exception as error:
+        print("Get owner documents error:", error)
+
+        return jsonify({
+            "message": "Unable to fetch documents"
+        }), 500
+
+    finally:
+        if cursor:
+            cursor.close()
+
+        if connection and not connection.closed:
+            connection.close()
+
+
+# --------------------------------------------------
+# GET DOCUMENT DETAILS
+# --------------------------------------------------
+
+@owner_bp.route("/documents/<int:document_id>", methods=["GET"])
+@role_required("OWNER")
+def get_document_details(document_id):
+
+    connection = None
+    cursor = None
+
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor()
+
+        cursor.execute(
+            """
+            SELECT
+                document_id,
+                document_name,
+                file_hash,
+                created_at,
+                updated_at
+            FROM documents
+            WHERE document_id = %s
+              AND owner_id = %s
+              AND is_deleted = FALSE
+            """,
+            (
+                document_id,
+                g.current_user["user_id"]
+            )
+        )
+
+        document = cursor.fetchone()
+
+        if not document:
+            return jsonify({
+                "message": "Document not found"
+            }), 404
+
+        return jsonify({
+            "document": document
+        }), 200
+
+    except Exception as error:
+        print("Get document details error:", error)
+
+        return jsonify({
+            "message": "Unable to retrieve document"
+        }), 500
+
+    finally:
+        if cursor:
+            cursor.close()
+
+        if connection and not connection.closed:
+            connection.close()
+
+
+# --------------------------------------------------
+# RENAME DOCUMENT
+# --------------------------------------------------
+
+@owner_bp.route("/documents/<int:document_id>", methods=["PATCH"])
+@role_required("OWNER")
+def update_document(document_id):
+
+    data = request.get_json(silent=True) or {}
+
+    new_name = data.get("document_name", "")
+
+    if not isinstance(new_name, str):
+        return jsonify({
+            "message": "Enter a valid document name"
+        }), 400
+
+    new_name = new_name.strip()
+
+    if not new_name or len(new_name) > 255:
+        return jsonify({
+            "message": "Enter a valid document name"
+        }), 400
+
+    connection = None
+    cursor = None
+
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor()
+
+        cursor.execute(
+            """
+            UPDATE documents
+            SET document_name = %s
+            WHERE document_id = %s
+              AND owner_id = %s
+              AND is_deleted = FALSE
+            """,
+            (
+                new_name,
+                document_id,
+                g.current_user["user_id"]
+            )
+        )
+
+        if cursor.rowcount == 0:
+            connection.rollback()
+
+            return jsonify({
+                "message": "Document not found"
+            }), 404
+
+        connection.commit()
+
+        return jsonify({
+            "message": "Document renamed successfully",
+            "document_name": new_name
+        }), 200
+
+    except Exception as error:
+        if connection and not connection.closed:
+            connection.rollback()
+
+        print("Rename document error:", error)
+
+        return jsonify({
+            "message": "Unable to rename document"
+        }), 500
+
+    finally:
+        if cursor:
+            cursor.close()
+
+        if connection and not connection.closed:
+            connection.close()
+
+
+# --------------------------------------------------
+# ARCHIVE DOCUMENT
+# --------------------------------------------------
+
+@owner_bp.route("/documents/<int:document_id>", methods=["DELETE"])
+@role_required("OWNER")
+def archive_document(document_id):
+
+    connection = None
+    cursor = None
+
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor()
+
+        cursor.execute(
+            """
+            UPDATE documents
+            SET is_deleted = TRUE,
+                deleted_at = CURRENT_TIMESTAMP
+            WHERE document_id = %s
+              AND owner_id = %s
+              AND is_deleted = FALSE
+            """,
+            (
+                document_id,
+                g.current_user["user_id"]
+            )
+        )
+
+        if cursor.rowcount == 0:
+            connection.rollback()
+
+            return jsonify({
+                "message": "Document not found"
+            }), 404
+
+        # Revoke all active permissions for this document
+        cursor.execute(
+            """
+            UPDATE document_permissions
+            SET revoked_at = CURRENT_TIMESTAMP
+            WHERE document_id = %s
+              AND revoked_at IS NULL
+            """,
+            (document_id,)
+        )
+
+        connection.commit()
+
+        return jsonify({
+            "message": "Document archived successfully"
+        }), 200
+
+    except Exception as error:
+        if connection and not connection.closed:
+            connection.rollback()
+
+        print("Archive document error:", error)
+
+        return jsonify({
+            "message": "Unable to archive document"
+        }), 500
+
+    finally:
+        if cursor:
+            cursor.close()
+
+        if connection and not connection.closed:
+            connection.close()
+
+
+# --------------------------------------------------
+# SHARE DOCUMENT WITH VIEWER
+# --------------------------------------------------
+
+@owner_bp.route(
+    "/documents/<int:document_id>/share",
+    methods=["POST"]
+)
+@role_required("OWNER")
+def share_document(document_id):
+
+    data = request.get_json(silent=True) or {}
+
+    viewer_email = data.get("viewer_email", "")
+
+    if not isinstance(viewer_email, str):
+        return jsonify({
+            "message": "Invalid Viewer email"
+        }), 400
+
+    viewer_email = viewer_email.strip().lower()
+
+    can_view = data.get("can_view", True)
+    can_download = data.get("can_download", False)
+    expires_at = data.get("expires_at")
+
+    if not viewer_email:
+        return jsonify({
+            "message": "Viewer email is required"
+        }), 400
+
+    if not isinstance(can_view, bool) or not isinstance(can_download, bool):
+        return jsonify({
+            "message": "Permissions must be true or false"
+        }), 400
+
+    if not can_view:
+        return jsonify({
+            "message": "A shared document must allow viewing"
+        }), 400
+
+    # Validate optional expiry date
+    if expires_at is not None:
+        try:
+            expiry = datetime.fromisoformat(
+                expires_at.replace("Z", "+00:00")
+            )
+
+            if expiry.tzinfo is None:
+                expiry = expiry.replace(tzinfo=timezone.utc)
+
+            if expiry <= datetime.now(timezone.utc):
+                return jsonify({
+                    "message": "Expiry date must be in the future"
+                }), 400
+
+            expires_at = expiry.astimezone(
+                timezone.utc
+            ).replace(tzinfo=None)
+
+        except (ValueError, AttributeError):
+            return jsonify({
+                "message": "Invalid expiry date"
+            }), 400
+
+    connection = None
+    cursor = None
+
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor()
+
+        # Verify document ownership
+        cursor.execute(
+            """
+            SELECT document_id
+            FROM documents
+            WHERE document_id = %s
+              AND owner_id = %s
+              AND is_deleted = FALSE
+            """,
+            (
+                document_id,
+                g.current_user["user_id"]
+            )
+        )
+
+        document = cursor.fetchone()
+
+        if not document:
+            connection.rollback()
+
+            return jsonify({
+                "message": "Document not found"
+            }), 404
+
+        # Find the active Viewer
+        cursor.execute(
+            """
+            SELECT users.user_id
+            FROM users
+            JOIN roles
+            ON users.role_id = roles.role_id
+            WHERE users.email = %s
+              AND roles.role_name = 'VIEWER'
+              AND users.status = 'ACTIVE'
+            """,
+            (viewer_email,)
+        )
+
+        viewer = cursor.fetchone()
+
+        if not viewer:
+            connection.rollback()
+
+            return jsonify({
+                "message": "Active Viewer account not found"
+            }), 404
+
+        # Check for an existing active permission
+        cursor.execute(
+            """
+            SELECT permission_id
+            FROM document_permissions
+            WHERE document_id = %s
+              AND viewer_id = %s
+              AND revoked_at IS NULL
+            FOR UPDATE
+            """,
+            (document_id, viewer["user_id"])
+        )
+
+        existing_permission = cursor.fetchone()
+
+        if existing_permission:
+            connection.rollback()
+
+            return jsonify({
+                "message": "This document is already shared with this Viewer"
+            }), 409
+
+        # Create permission
+        cursor.execute(
+            """
+            INSERT INTO document_permissions
+            (
+                document_id,
+                viewer_id,
+                can_view,
+                can_download,
+                expires_at
+            )
+            VALUES (%s, %s, %s, %s, %s)
+            RETURNING permission_id
+            """,
+            (
+                document_id,
+                viewer["user_id"],
+                can_view,
+                can_download,
+                expires_at
+            )
+        )
+
+        permission_id = cursor.fetchone()["permission_id"]
+
+        connection.commit()
+
+        return jsonify({
+            "message": "Document shared successfully",
+            "permission_id": permission_id,
+            "viewer_email": viewer_email,
+            "can_view": can_view,
+            "can_download": can_download
+        }), 201
+
+    except Exception as error:
+        if connection and not connection.closed:
+            connection.rollback()
+
+        print("Share document error:", error)
+
+        return jsonify({
+            "message": "Unable to share document"
+        }), 500
+
+    finally:
+        if cursor:
+            cursor.close()
+
+        if connection and not connection.closed:
+            connection.close()
+
+
+# --------------------------------------------------
+# REVOKE VIEWER PERMISSION
+# --------------------------------------------------
+
+@owner_bp.route(
+    "/permissions/<int:permission_id>",
+    methods=["DELETE"]
+)
+@role_required("OWNER")
+def revoke_permission(permission_id):
+
+    connection = None
+    cursor = None
+
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor()
+
+        # PostgreSQL UPDATE ... FROM syntax
+        cursor.execute(
+            """
+            UPDATE document_permissions AS dp
+            SET revoked_at = CURRENT_TIMESTAMP
+            FROM documents AS d
+            WHERE dp.document_id = d.document_id
+              AND dp.permission_id = %s
+              AND d.owner_id = %s
+              AND d.is_deleted = FALSE
+              AND dp.revoked_at IS NULL
+            """,
+            (
+                permission_id,
+                g.current_user["user_id"]
+            )
+        )
+
+        if cursor.rowcount == 0:
+            connection.rollback()
+
+            return jsonify({
+                "message": "Permission not found or already revoked"
+            }), 404
+
+        connection.commit()
+
+        return jsonify({
+            "message": "Viewer access revoked successfully"
+        }), 200
+
+    except Exception as error:
+        if connection and not connection.closed:
+            connection.rollback()
+
+        print("Revoke permission error:", error)
+
+        return jsonify({
+            "message": "Unable to revoke permission"
+        }), 500
+
+    finally:
+        if cursor:
+            cursor.close()
+
+        if connection and not connection.closed:
+            connection.close()
+
+
+# --------------------------------------------------
+# GET DOCUMENT PERMISSIONS
+# --------------------------------------------------
+
+@owner_bp.route(
+    "/documents/<int:document_id>/permissions",
+    methods=["GET"]
+)
+@role_required("OWNER")
+def get_document_permissions(document_id):
+
+    connection = None
+    cursor = None
+
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor()
+
+        owner_id = g.current_user["user_id"]
+
+        # Verify document ownership
+        cursor.execute(
+            """
+            SELECT document_id
+            FROM documents
+            WHERE document_id = %s
+              AND owner_id = %s
+              AND is_deleted = FALSE
+            """,
+            (document_id, owner_id)
+        )
+
+        document = cursor.fetchone()
+
+        if not document:
+            return jsonify({
+                "success": False,
+                "message": "Document not found"
+            }), 404
+
+        # Retrieve sharing permissions
+        cursor.execute(
+            """
+            SELECT
+                p.permission_id,
+                p.viewer_id,
+                u.name AS viewer_name,
+                u.email AS viewer_email,
+                p.can_view,
+                p.can_download,
+                p.granted_at,
+                p.expires_at,
+                p.revoked_at
+            FROM document_permissions p
+            JOIN users u
+                ON p.viewer_id = u.user_id
+            WHERE p.document_id = %s
+            ORDER BY p.granted_at DESC
+            """,
+            (document_id,)
+        )
+
+        permissions = cursor.fetchall()
+
+        # Convert dates into JSON-compatible strings
+        for permission in permissions:
+            for field in ["granted_at", "expires_at", "revoked_at"]:
+                if permission[field]:
+                    permission[field] = permission[field].isoformat()
+
+        return jsonify({
+            "success": True,
+            "permissions": permissions
+        }), 200
+
+    except Exception as error:
+        print("Permission retrieval error:", error)
+
+        return jsonify({
+            "success": False,
+            "message": "Unable to retrieve permissions"
+        }), 500
+
+    finally:
+        if cursor:
+            cursor.close()
+
+        if connection and not connection.closed:
+            connection.close()
+
+
+# --------------------------------------------------
+# GET OWNER ACTIVITY
+# --------------------------------------------------
+
+@owner_bp.route("/activity", methods=["GET"])
+@role_required("OWNER")
+def get_owner_activity():
+
+    connection = None
+    cursor = None
+
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor()
+
+        owner_id = g.current_user["user_id"]
+
+        query = """
+            SELECT
+                al.log_id,
+                al.document_id,
+                d.document_name,
+                al.user_id,
+                u.name AS user_name,
+                u.email AS user_email,
+                al.action,
+                al.result,
+                al.reason,
+                al.ip_address,
+                al.timestamp
+            FROM audit_logs al
+            INNER JOIN documents d
+                ON al.document_id = d.document_id
+            LEFT JOIN users u
+                ON al.user_id = u.user_id
+            WHERE d.owner_id = %s
+            ORDER BY al.log_id DESC
+            LIMIT 200
+        """
+
+        cursor.execute(query, (owner_id,))
+
+        activities = cursor.fetchall()
+
+        for activity in activities:
+            if activity["timestamp"]:
+                activity["timestamp"] = (
+                    activity["timestamp"].isoformat()
+                )
+
+        return jsonify({
+            "message": "Owner activity retrieved successfully.",
+            "activities": activities
+        }), 200
+
+    except Exception as error:
+        print("Owner activity error:", str(error))
+
+        return jsonify({
+            "message": "Unable to retrieve document activity."
+        }), 500
+
+    finally:
+        if cursor:
+            cursor.close()
+
+        if connection and not connection.closed:
+            connection.close()
+
+
+========================================
+FILE: C:\Users\kastu\OneDrive\Desktop\TrustWorld\backend\routes\role_routes.py
+========================================
+
+
+from flask import Blueprint, jsonify, g
+from flask_jwt_extended import jwt_required
+
+from middleware.permissions import role_required
+
+
+role_bp = Blueprint("roles", __name__)
+
+
+# COMMON AUTHENTICATED USER ROUTE
+@role_bp.route("/api/me", methods=["GET"])
+@jwt_required()
+@role_required("ADMIN", "OWNER", "VIEWER")
+def my_profile():
+
+    return jsonify({
+        "message": "Authentication successful",
+        "user": {
+            "user_id": g.current_user["user_id"],
+            "name": g.current_user["name"],
+            "email": g.current_user["email"],
+            "role": g.current_user["role_name"]
+        }
+    }), 200
+
+
+# OWNER DASHBOARD
+@role_bp.route("/api/owner/dashboard", methods=["GET"])
+@jwt_required()
+@role_required("OWNER")
+def owner_dashboard():
+
+    return jsonify({
+        "message": "Welcome to Owner Dashboard",
+        "features": [
+            "Upload documents",
+            "Manage own documents",
+            "Share documents",
+            "Manage permissions"
+        ]
+    }), 200
+
+
+# VIEWER DASHBOARD
+@role_bp.route("/api/viewer/dashboard", methods=["GET"])
+@jwt_required()
+@role_required("VIEWER")
+def viewer_dashboard():
+
+    return jsonify({
+        "message": "Welcome to Viewer Dashboard",
+        "features": [
+            "View shared documents",
+            "Download permitted documents",
+            "View own access history"
+        ]
+    }), 200
+
+
+========================================
+FILE: C:\Users\kastu\OneDrive\Desktop\TrustWorld\backend\routes\viewer_routes.py
+========================================
+
+
+from io import BytesIO
+
+from flask import (
+    Blueprint,
+    jsonify,
+    g,
+    request,
+    send_file
+)
+
+from db import get_db_connection
+from middleware.permissions import role_required
+from services.audit_service import record_audit_event
+from services.file_service import download_file
+
+
+viewer_bp = Blueprint(
+    "viewer",
+    __name__,
+    url_prefix="/api/viewer"
+)
+
+
+# --------------------------------------------------
+# 1. VIEW DOCUMENTS SHARED WITH THE VIEWER
+# --------------------------------------------------
+
+@viewer_bp.route("/documents", methods=["GET"])
+@role_required("VIEWER")
+def get_shared_documents():
+
+    connection = None
+    cursor = None
+
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor()
+
+        viewer_id = g.current_user["user_id"]
+
+        cursor.execute(
+            """
+            SELECT
+                d.document_id,
+                d.document_name,
+                d.created_at,
+                u.name AS owner_name,
+                p.can_view,
+                p.can_download,
+                p.expires_at
+            FROM document_permissions p
+            JOIN documents d
+                ON p.document_id = d.document_id
+            JOIN users u
+                ON d.owner_id = u.user_id
+            WHERE
+                p.viewer_id = %s
+                AND p.can_view = TRUE
+                AND p.revoked_at IS NULL
+                AND (
+                    p.expires_at IS NULL
+                    OR p.expires_at > CURRENT_TIMESTAMP
+                )
+                AND d.is_deleted = FALSE
+            ORDER BY p.granted_at DESC
+            """,
+            (viewer_id,)
+        )
+
+        documents = cursor.fetchall()
+
+        # Convert dates into JSON-friendly strings
+        for document in documents:
+
+            if document["created_at"]:
+                document["created_at"] = (
+                    document["created_at"].isoformat()
+                )
+
+            if document["expires_at"]:
+                document["expires_at"] = (
+                    document["expires_at"].isoformat()
+                )
+
+        return jsonify({
+            "success": True,
+            "count": len(documents),
+            "documents": documents
+        }), 200
+
+    except Exception as error:
+
+        print("Viewer documents error:", error)
+
+        return jsonify({
+            "success": False,
+            "message": "Unable to retrieve shared documents"
+        }), 500
+
+    finally:
+
+        if cursor:
+            cursor.close()
+
+        if connection and not connection.closed:
+            connection.close()
+
+
+# --------------------------------------------------
+# 2. SECURELY VIEW A SHARED DOCUMENT
+# --------------------------------------------------
+
+@viewer_bp.route(
+    "/documents/<int:document_id>/view",
+    methods=["GET"]
+)
+@role_required("VIEWER")
+def view_shared_document(document_id):
+
+    connection = None
+    cursor = None
+
+    viewer_id = g.current_user["user_id"]
+    ip_address = request.remote_addr
+
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor()
+
+        # Step 1: Find the document
+        cursor.execute(
+            """
+            SELECT
+                document_id,
+                document_name,
+                storage_path
+            FROM documents
+            WHERE document_id = %s
+              AND is_deleted = FALSE
+            """,
+            (document_id,)
+        )
+
+        document = cursor.fetchone()
+
+        # Document does not exist or is archived
+        if not document:
+
+            record_audit_event(
+                viewer_id,
+                None,
+                "DOCUMENT_VIEW",
+                "DENIED",
+                "DOCUMENT_NOT_AVAILABLE",
+                ip_address
+            )
+
+            return jsonify({
+                "success": False,
+                "message": "Document is not available"
+            }), 404
+
+        # Step 2: Check active viewing permission
+        cursor.execute(
+            """
+            SELECT permission_id
+            FROM document_permissions
+            WHERE document_id = %s
+              AND viewer_id = %s
+              AND can_view = TRUE
+              AND revoked_at IS NULL
+              AND (
+                    expires_at IS NULL
+                    OR expires_at > CURRENT_TIMESTAMP
+              )
+            LIMIT 1
+            """,
+            (document_id, viewer_id)
+        )
+
+        permission = cursor.fetchone()
+
+        # Permission missing, revoked or expired
+        if not permission:
+
+            record_audit_event(
+                viewer_id,
+                document_id,
+                "DOCUMENT_VIEW",
+                "DENIED",
+                "VIEW_PERMISSION_MISSING_OR_EXPIRED",
+                ip_address
+            )
+
+            return jsonify({
+                "success": False,
+                "message": "You do not have permission to view this document"
+            }), 403
+
+        # Step 3: Retrieve the document from private Supabase Storage
+        file_content = download_file(document["storage_path"])
+
+        # Step 5: Record successful authorization
+        record_audit_event(
+            viewer_id,
+            document_id,
+            "DOCUMENT_VIEW",
+            "ALLOWED",
+            "VIEW_PERMISSION_VERIFIED",
+            ip_address
+        )
+
+        # Step 6: Send document for viewing
+        return send_file(
+            BytesIO(file_content),
+            as_attachment=False,
+            download_name=document["document_name"],
+            conditional=True
+        )
+
+    except Exception as error:
+
+        print("Secure document viewing error:", error)
+
+        return jsonify({
+            "success": False,
+            "message": "Unable to open document"
+        }), 500
+
+    finally:
+
+        if cursor:
+            cursor.close()
+
+        if connection and not connection.closed:
+            connection.close()
+
+
+# --------------------------------------------------
+# 3. SECURELY DOWNLOAD A SHARED DOCUMENT
+# --------------------------------------------------
+
+@viewer_bp.route(
+    "/documents/<int:document_id>/download",
+    methods=["GET"]
+)
+@role_required("VIEWER")
+def download_shared_document(document_id):
+
+    connection = None
+    cursor = None
+
+    viewer_id = g.current_user["user_id"]
+    ip_address = request.remote_addr
+
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor()
+
+        # Step 1: Check whether document exists
+        cursor.execute(
+            """
+            SELECT
+                document_id,
+                document_name,
+                storage_path
+            FROM documents
+            WHERE document_id = %s
+              AND is_deleted = FALSE
+            """,
+            (document_id,)
+        )
+
+        document = cursor.fetchone()
+
+        if not document:
+
+            record_audit_event(
+                viewer_id,
+                None,
+                "DOCUMENT_DOWNLOAD",
+                "DENIED",
+                "DOCUMENT_NOT_AVAILABLE",
+                ip_address
+            )
+
+            return jsonify({
+                "success": False,
+                "message": "Document is not available"
+            }), 404
+
+        # Step 2: Check viewing and downloading permissions
+        cursor.execute(
+            """
+            SELECT permission_id
+            FROM document_permissions
+            WHERE document_id = %s
+              AND viewer_id = %s
+              AND can_view = TRUE
+              AND can_download = TRUE
+              AND revoked_at IS NULL
+              AND (
+                    expires_at IS NULL
+                    OR expires_at > CURRENT_TIMESTAMP
+              )
+            LIMIT 1
+            """,
+            (document_id, viewer_id)
+        )
+
+        permission = cursor.fetchone()
+
+        # Step 3: Reject unauthorized download
+        if not permission:
+
+            record_audit_event(
+                viewer_id,
+                document_id,
+                "DOCUMENT_DOWNLOAD",
+                "DENIED",
+                "DOWNLOAD_PERMISSION_MISSING_OR_EXPIRED",
+                ip_address
+            )
+
+            return jsonify({
+                "success": False,
+                "message": "You do not have permission to download this document"
+            }), 403
+
+        # Step 4: Retrieve the document from private Supabase Storage
+        file_content = download_file(document["storage_path"])
+
+        # Step 6: Record successful download authorization
+        record_audit_event(
+            viewer_id,
+            document_id,
+            "DOCUMENT_DOWNLOAD",
+            "ALLOWED",
+            "DOWNLOAD_PERMISSION_VERIFIED",
+            ip_address
+        )
+
+        # Step 7: Send file as download
+        return send_file(
+            BytesIO(file_content),
+            as_attachment=True,
+            download_name=document["document_name"],
+            conditional=True
+        )
+
+    except Exception as error:
+
+        print("Secure document download error:", error)
+
+        return jsonify({
+            "success": False,
+            "message": "Unable to download document"
+        }), 500
+
+    finally:
+
+        if cursor:
+            cursor.close()
+
+        if connection and not connection.closed:
+            connection.close()
+
+
+# --------------------------------------------------
+# 4. VIEW VIEWER ACTIVITY HISTORY
+# --------------------------------------------------
+
+@viewer_bp.route("/activity", methods=["GET"])
+@role_required("VIEWER")
+def get_viewer_activity():
+
+    connection = None
+    cursor = None
+
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor()
+
+        viewer_id = g.current_user["user_id"]
+
+        # Retrieve only this Viewer's audit records
+        cursor.execute(
+            """
+            SELECT
+                a.log_id,
+                a.document_id,
+                d.document_name,
+                a.action,
+                a.result,
+                a.reason,
+                a.timestamp
+            FROM audit_logs a
+            LEFT JOIN documents d
+                ON a.document_id = d.document_id
+            WHERE a.user_id = %s
+            ORDER BY a.log_id DESC
+            LIMIT 100
+            """,
+            (viewer_id,)
+        )
+
+        activities = cursor.fetchall()
+
+        # Convert timestamps for JSON
+        for activity in activities:
+
+            if activity["timestamp"]:
+                activity["timestamp"] = (
+                    activity["timestamp"].isoformat()
+                )
+
+        return jsonify({
+            "success": True,
+            "count": len(activities),
+            "activities": activities
+        }), 200
+
+    except Exception as error:
+
+        print("Viewer activity error:", error)
+
+        return jsonify({
+            "success": False,
+            "message": "Unable to retrieve activity history"
+        }), 500
+
+    finally:
+
+        if cursor:
+            cursor.close()
+
+        if connection and not connection.closed:
+            connection.close()
+
+
+========================================
+FILE: C:\Users\kastu\OneDrive\Desktop\TrustWorld\backend\services\audit_service.py
+========================================
+
+import hashlib
+import json
+from datetime import datetime, timezone
+
+from db import get_db_connection
+
+
+def record_audit_event(
+    user_id,
+    document_id,
+    action,
+    result,
+    reason,
+    ip_address
+):
+    connection = None
+    cursor = None
+
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor()
+
+        # PostgreSQL advisory lock:
+        # Ensures only one request writes to the audit chain at a time.
+        cursor.execute(
+            "SELECT pg_advisory_xact_lock(724681923)"
+        )
+
+        # Find the most recent audit hash
+        cursor.execute("""
+            SELECT current_hash
+            FROM audit_logs
+            ORDER BY log_id DESC
+            LIMIT 1
+        """)
+
+        previous_record = cursor.fetchone()
+
+        previous_hash = (
+            previous_record["current_hash"]
+            if previous_record
+            else "0" * 64
+        )
+
+        # Use one timestamp for both the stored event and its hash
+        event_time = datetime.now(timezone.utc).replace(tzinfo=None)
+
+        event_data = {
+            "user_id": user_id,
+            "document_id": document_id,
+            "action": action,
+            "result": result,
+            "reason": reason,
+            "ip_address": ip_address,
+            "timestamp": event_time.isoformat(timespec="microseconds"),
+            "previous_hash": previous_hash
+        }
+
+        # Convert event details into consistent JSON
+        event_json = json.dumps(
+            event_data,
+            sort_keys=True,
+            separators=(",", ":")
+        )
+
+        # Generate SHA-256 hash
+        current_hash = hashlib.sha256(
+            event_json.encode("utf-8")
+        ).hexdigest()
+
+        # Insert the audit event
+        cursor.execute("""
+            INSERT INTO audit_logs (
+                user_id,
+                document_id,
+                action,
+                result,
+                reason,
+                ip_address,
+                timestamp,
+                previous_hash,
+                current_hash
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (
+            user_id,
+            document_id,
+            action,
+            result,
+            reason,
+            ip_address,
+            event_time,
+            previous_hash,
+            current_hash
+        ))
+
+        # Commit also releases the transaction-level advisory lock
+        connection.commit()
+
+    except Exception:
+        if connection:
+            connection.rollback()
+        raise
+
+    finally:
+        if cursor:
+            cursor.close()
+
+        if connection and not connection.closed:
+            connection.close()
+
+
+
+========================================
+FILE: C:\Users\kastu\OneDrive\Desktop\TrustWorld\backend\services\audit_verification.py
+========================================
+
+import hashlib
+import json
+
+from db import get_db_connection
+
+
+def calculate_audit_hash(event_data):
+    """
+    Recalculate the SHA-256 hash using the same
+    JSON format used when the audit record was created.
+    """
+
+    event_json = json.dumps(
+        event_data,
+        sort_keys=True,
+        separators=(",", ":")
+    )
+
+    return hashlib.sha256(
+        event_json.encode("utf-8")
+    ).hexdigest()
+
+
+def verify_audit_chain():
+
+    connection = None
+    cursor = None
+
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor()
+
+        # Retrieve audit records in chronological order
+        cursor.execute("""
+            SELECT
+                log_id,
+                user_id,
+                document_id,
+                action,
+                result,
+                reason,
+                ip_address,
+                timestamp,
+                previous_hash,
+                current_hash
+            FROM audit_logs
+            ORDER BY log_id ASC
+        """)
+
+        records = cursor.fetchall()
+
+        expected_previous_hash = "0" * 64
+
+        total_records = len(records)
+        verified_records = 0
+
+        for record in records:
+
+            # Step 1: Verify previous hash connection
+            if record["previous_hash"] != expected_previous_hash:
+
+                return {
+                    "valid": False,
+                    "message": "Audit chain is broken",
+                    "failed_log_id": record["log_id"],
+                    "reason": "PREVIOUS_HASH_MISMATCH",
+                    "total_records": total_records,
+                    "verified_records": verified_records
+                }
+
+            # Step 2: Rebuild the original event data
+            event_data = {
+                "user_id": record["user_id"],
+                "document_id": record["document_id"],
+                "action": record["action"],
+                "result": record["result"],
+                "reason": record["reason"],
+                "ip_address": record["ip_address"],
+                "timestamp": record["timestamp"].isoformat(
+                    timespec="microseconds"
+                ),
+                "previous_hash": record["previous_hash"]
+            }
+
+            # Step 3: Recalculate the hash
+            recalculated_hash = calculate_audit_hash(event_data)
+
+            # Step 4: Compare calculated and stored hashes
+            if recalculated_hash != record["current_hash"]:
+
+                return {
+                    "valid": False,
+                    "message": "Audit record has been modified",
+                    "failed_log_id": record["log_id"],
+                    "reason": "CURRENT_HASH_MISMATCH",
+                    "total_records": total_records,
+                    "verified_records": verified_records
+                }
+
+            # Move to the next record
+            expected_previous_hash = record["current_hash"]
+
+            verified_records += 1
+
+        return {
+            "valid": True,
+            "message": "All audit records are valid",
+            "total_records": total_records,
+            "verified_records": verified_records
+        }
+
+    except Exception as error:
+
+        print("Audit verification error:", error)
+        raise
+
+    finally:
+
+        if cursor:
+            cursor.close()
+
+        if connection and not connection.closed:
+            connection.close()
+
+
+
+========================================
+FILE: C:\Users\kastu\OneDrive\Desktop\TrustWorld\backend\services\file_service.py
+========================================
+
+
+import os
+import hashlib
+import uuid
+import mimetypes
+
+from werkzeug.utils import secure_filename
+from dotenv import load_dotenv
+from supabase import create_client
+
+load_dotenv()
+
+
+# Allowed document extensions
+ALLOWED_EXTENSIONS = {
+    "pdf",
+    "doc",
+    "docx",
+    "txt",
+    "xlsx",
+    "csv"
+}
+
+
+def get_supabase_client():
+    """Create a Supabase client using backend environment variables."""
+
+    supabase_url = os.getenv("SUPABASE_URL")
+    supabase_key = os.getenv("SUPABASE_SECRET_KEY")
+
+    if not supabase_url or not supabase_key:
+        raise RuntimeError(
+            "Supabase configuration is missing. "
+            "Check SUPABASE_URL and SUPABASE_SECRET_KEY."
+        )
+
+    return create_client(supabase_url, supabase_key)
+
+
+def get_storage_bucket():
+    """Get the private Supabase Storage bucket name."""
+
+    bucket = os.getenv("SUPABASE_BUCKET")
+
+    if not bucket:
+        raise RuntimeError("SUPABASE_BUCKET is not configured.")
+
+    return bucket
+
+
+def allowed_file(filename):
+    """Check whether the file extension is allowed."""
+
+    if not filename or "." not in filename:
+        return False
+
+    extension = filename.rsplit(".", 1)[1].lower()
+    return extension in ALLOWED_EXTENSIONS
+
+
+def generate_file_hash(file_content):
+    """Generate a SHA-256 hash from file bytes."""
+
+    return hashlib.sha256(file_content).hexdigest()
+
+
+def validate_storage_path(storage_path):
+    """Accept only simple filenames generated by this service."""
+
+    if (
+        not storage_path
+        or not isinstance(storage_path, str)
+        or storage_path in {".", ".."}
+        or "/" in storage_path
+        or "\\" in storage_path
+    ):
+        raise ValueError("Invalid document storage path.")
+
+
+def save_uploaded_file(uploaded_file, upload_folder=None):
+    """
+    Upload a document to private Supabase Storage.
+
+    upload_folder is retained for compatibility but is not used.
+    """
+
+    if not uploaded_file or not uploaded_file.filename:
+        raise ValueError("No file was selected.")
+
+    original_name = secure_filename(uploaded_file.filename)
+
+    if not original_name or "." not in original_name:
+        raise ValueError("Invalid filename.")
+
+    if not allowed_file(original_name):
+        raise ValueError("File type is not allowed.")
+
+    extension = original_name.rsplit(".", 1)[1].lower()
+
+    file_content = uploaded_file.read()
+
+    if not file_content:
+        raise ValueError("The selected file is empty.")
+
+    unique_filename = f"{uuid.uuid4().hex}.{extension}"
+
+    file_hash = generate_file_hash(file_content)
+
+    content_type = (
+        mimetypes.guess_type(original_name)[0]
+        or "application/octet-stream"
+    )
+
+    supabase = get_supabase_client()
+    bucket = get_storage_bucket()
+
+    try:
+        supabase.storage.from_(bucket).upload(
+            path=unique_filename,
+            file=file_content,
+            file_options={
+                "content-type": content_type,
+                "upsert": "false"
+            }
+        )
+
+    except Exception as error:
+        raise RuntimeError(
+            "Document upload failed. Please try again."
+        ) from error
+
+    return {
+        "original_name": original_name,
+        "storage_name": unique_filename,
+        "storage_path": unique_filename,
+        "file_path": unique_filename,
+        "file_hash": file_hash
+    }
+
+
+def download_file(storage_path):
+    """Download a document from Supabase Storage as bytes."""
+
+    validate_storage_path(storage_path)
+
+    supabase = get_supabase_client()
+    bucket = get_storage_bucket()
+
+    try:
+        return supabase.storage.from_(bucket).download(storage_path)
+
+    except Exception as error:
+        raise RuntimeError(
+            "Unable to download the document from storage."
+        ) from error
+
+
+def delete_file(storage_path):
+    """Delete a document from Supabase Storage."""
+
+    validate_storage_path(storage_path)
+
+    supabase = get_supabase_client()
+    bucket = get_storage_bucket()
+
+    try:
+        supabase.storage.from_(bucket).remove([storage_path])
+        return True
+
+    except Exception as error:
+        raise RuntimeError(
+            "Unable to delete the document from storage."
+        ) from error
+
+
+def create_document_signed_url(storage_path, expires_in=60):
+    """Generate a temporary URL for a private document."""
+
+    validate_storage_path(storage_path)
+
+    if not isinstance(expires_in, int) or expires_in <= 0:
+        raise ValueError("Invalid signed URL expiry time.")
+
+    supabase = get_supabase_client()
+    bucket = get_storage_bucket()
+
+    try:
+        result = supabase.storage.from_(bucket).create_signed_url(
+            storage_path,
+            expires_in
+        )
+
+        return result.get("signedURL") or result.get("signedUrl")
+
+    except Exception as error:
+        raise RuntimeError(
+            "Unable to generate document access URL."
+        ) from error
+

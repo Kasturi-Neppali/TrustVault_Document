@@ -9,7 +9,7 @@ from middleware.permissions import role_required
 role_bp = Blueprint("roles", __name__)
 
 
-# Common authenticated user route
+# COMMON AUTHENTICATED USER ROUTE
 @role_bp.route("/api/me", methods=["GET"])
 @jwt_required()
 @role_required("ADMIN", "OWNER", "VIEWER")
@@ -23,23 +23,6 @@ def my_profile():
             "email": g.current_user["email"],
             "role": g.current_user["role_name"]
         }
-    }), 200
-
-
-# ADMIN DASHBOARD
-@role_bp.route("/api/admin/dashboard", methods=["GET"])
-@jwt_required()
-@role_required("ADMIN")
-def admin_dashboard():
-
-    return jsonify({
-        "message": "Welcome to Admin Dashboard",
-        "features": [
-            "Manage users",
-            "Manage roles",
-            "Monitor security",
-            "View all audit logs"
-        ]
     }), 200
 
 
