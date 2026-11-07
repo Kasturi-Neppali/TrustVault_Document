@@ -1,6 +1,7 @@
 
 
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import {
     getOwnerDocuments,
@@ -19,7 +20,7 @@ function OwnerDashboard() {
     // --------------------------------------------------
     // STATE VARIABLES
     // --------------------------------------------------
-
+    const navigate = useNavigate();
     const [documents, setDocuments] = useState([]);
 
     const [activeTab, setActiveTab] = useState("overview");
@@ -392,14 +393,12 @@ function OwnerDashboard() {
     // --------------------------------------------------
 
     const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("role");
+    localStorage.removeItem("user");
 
-        localStorage.removeItem("token");
-        localStorage.removeItem("role");
-        localStorage.removeItem("user");
-
-        window.location.href = "/login";
-    };
-
+    navigate("/login", { replace: true });
+};
 
     // --------------------------------------------------
     // RENDER DASHBOARD

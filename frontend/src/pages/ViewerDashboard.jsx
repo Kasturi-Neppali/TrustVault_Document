@@ -1,5 +1,6 @@
 
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import {
     getSharedDocuments,
@@ -9,7 +10,7 @@ import {
 } from "../services/viewerService";
 
 function ViewerDashboard() {
-
+    const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState("overview");
 
     const [documents, setDocuments] = useState([]);
@@ -147,12 +148,12 @@ function ViewerDashboard() {
 
     // Logout
     const handleLogout = () => {
-        localStorage.removeItem("token");
-        localStorage.removeItem("role");
-        localStorage.removeItem("user");
+    localStorage.removeItem("token");
+    localStorage.removeItem("role");
+    localStorage.removeItem("user");
 
-        window.location.href = "/login";
-    };
+    navigate("/login", { replace: true });
+};
 
     return (
         <div className="viewer-layout">

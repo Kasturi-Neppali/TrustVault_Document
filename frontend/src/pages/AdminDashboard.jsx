@@ -1,6 +1,8 @@
 
 
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+
 
 import {
     getAdminDashboard,
@@ -13,6 +15,7 @@ import {
 } from "../services/adminService";
 
 function AdminDashboard() {
+    const navigate = useNavigate();
 
     const [activeTab, setActiveTab] = useState("overview");
 
@@ -163,12 +166,12 @@ function AdminDashboard() {
 
     // Logout
     const handleLogout = () => {
-        localStorage.removeItem("token");
-        localStorage.removeItem("role");
-        localStorage.removeItem("user");
+    localStorage.removeItem("token");
+    localStorage.removeItem("role");
+    localStorage.removeItem("user");
 
-        window.location.href = "/login";
-    };
+    navigate("/login", { replace: true });
+};
 
     // Dashboard statistics
     const statistics = [
