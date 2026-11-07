@@ -1,5 +1,4 @@
 
-
 import hashlib
 import json
 
@@ -30,7 +29,7 @@ def verify_audit_chain():
 
     try:
         connection = get_db_connection()
-        cursor = connection.cursor(dictionary=True)
+        cursor = connection.cursor()
 
         # Retrieve audit records in chronological order
         cursor.execute("""
@@ -114,7 +113,6 @@ def verify_audit_chain():
     except Exception as error:
 
         print("Audit verification error:", error)
-
         raise
 
     finally:
@@ -122,5 +120,6 @@ def verify_audit_chain():
         if cursor:
             cursor.close()
 
-        if connection and connection.is_connected():
+        if connection and not connection.closed:
             connection.close()
+

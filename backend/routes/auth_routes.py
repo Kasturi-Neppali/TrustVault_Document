@@ -1,5 +1,6 @@
 
 
+
 from flask import Blueprint, request, jsonify
 from db import get_db_connection
 
@@ -90,7 +91,7 @@ def register():
 
     try:
         connection = get_db_connection()
-        cursor = connection.cursor(dictionary=True)
+        cursor = connection.cursor()
 
         # Check whether email already exists
         cursor.execute(
@@ -162,7 +163,7 @@ def register():
 
     except Exception as error:
 
-        if connection and connection.is_connected():
+        if connection and not connection.closed:
             connection.rollback()
 
         print("Registration error:", error)
@@ -178,7 +179,7 @@ def register():
         if cursor:
             cursor.close()
 
-        if connection and connection.is_connected():
+        if connection and not connection.closed:
             connection.close()
 
 
@@ -219,7 +220,7 @@ def login():
 
     try:
         connection = get_db_connection()
-        cursor = connection.cursor(dictionary=True)
+        cursor = connection.cursor()
 
         # Find user and role
         cursor.execute(
@@ -354,7 +355,7 @@ def login():
 
     except Exception as error:
 
-        if connection and connection.is_connected():
+        if connection and not connection.closed:
             connection.rollback()
 
         print("\n===== LOGIN ERROR =====")
@@ -372,5 +373,6 @@ def login():
         if cursor:
             cursor.close()
 
-        if connection and connection.is_connected():
+        if connection and not connection.closed:
             connection.close()
+

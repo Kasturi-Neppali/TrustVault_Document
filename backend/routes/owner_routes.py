@@ -1,6 +1,3 @@
-
-
-import os
 from datetime import datetime, timezone
 
 from flask import (
@@ -12,12 +9,12 @@ from flask import (
 )
 
 from db import get_db_connection
-
 from middleware.permissions import role_required
 
 from services.file_service import (
     allowed_file,
-    save_uploaded_file
+    save_uploaded_file,
+    delete_file
 )
 
 
@@ -28,6 +25,9 @@ owner_bp = Blueprint(
 )
 
 
+# --------------------------------------------------
+# UPLOAD DOCUMENT
+# --------------------------------------------------
 
 @owner_bp.route("/documents", methods=["POST"])
 @role_required("OWNER")
@@ -50,18 +50,12 @@ def upload_document():
     cursor = None
 
     try:
-        upload_folder = current_app.config["UPLOAD_FOLDER"]
-
-        # Save file privately and calculate its hash
-        file_info = save_uploaded_file(
-            uploaded_file,
-            upload_folder
-        )
+        file_info = save_uploaded_file(uploaded_file)
 
         connection = get_db_connection()
         cursor = connection.cursor()
 
-        # Store document metadata in MySQL
+        # Insert document metadata into PostgreSQL
         cursor.execute(
             """
             INSERT INTO documents
@@ -72,6 +66,7 @@ def upload_document():
                 file_hash
             )
             VALUES (%s, %s, %s, %s)
+            RETURNING document_id
             """,
             (
                 g.current_user["user_id"],
@@ -81,7 +76,7 @@ def upload_document():
             )
         )
 
-        document_id = cursor.lastrowid
+        document_id = cursor.fetchone()["document_id"]
 
         connection.commit()
 
@@ -92,14 +87,19 @@ def upload_document():
             "file_hash": file_info["file_hash"]
         }), 201
 
-    except Exception:
+    except Exception as error:
 
-        if connection and connection.is_connected():
+        if connection and not connection.closed:
             connection.rollback()
 
-        # Remove uploaded file if database operation fails
-        if file_info and os.path.exists(file_info["file_path"]):
-            os.remove(file_info["file_path"])
+        print("Document upload error:", error)
+
+        # Remove the uploaded cloud object if the database operation fails.
+        if file_info and file_info.get("storage_path"):
+            try:
+                delete_file(file_info["storage_path"])
+            except Exception as cleanup_error:
+                print("Supabase cleanup error:", cleanup_error)
 
         return jsonify({
             "message": "Document upload failed"
@@ -109,9 +109,13 @@ def upload_document():
         if cursor:
             cursor.close()
 
-        if connection and connection.is_connected():
+        if connection and not connection.closed:
             connection.close()
 
+
+# --------------------------------------------------
+# GET OWNER DOCUMENTS
+# --------------------------------------------------
 
 @owner_bp.route("/documents", methods=["GET"])
 @role_required("OWNER")
@@ -122,7 +126,7 @@ def get_my_documents():
 
     try:
         connection = get_db_connection()
-        cursor = connection.cursor(dictionary=True)
+        cursor = connection.cursor()
 
         cursor.execute(
             """
@@ -147,7 +151,9 @@ def get_my_documents():
             "documents": documents
         }), 200
 
-    except Exception:
+    except Exception as error:
+        print("Get owner documents error:", error)
+
         return jsonify({
             "message": "Unable to fetch documents"
         }), 500
@@ -156,10 +162,13 @@ def get_my_documents():
         if cursor:
             cursor.close()
 
-        if connection and connection.is_connected():
+        if connection and not connection.closed:
             connection.close()
 
 
+# --------------------------------------------------
+# GET DOCUMENT DETAILS
+# --------------------------------------------------
 
 @owner_bp.route("/documents/<int:document_id>", methods=["GET"])
 @role_required("OWNER")
@@ -170,7 +179,7 @@ def get_document_details(document_id):
 
     try:
         connection = get_db_connection()
-        cursor = connection.cursor(dictionary=True)
+        cursor = connection.cursor()
 
         cursor.execute(
             """
@@ -202,7 +211,9 @@ def get_document_details(document_id):
             "document": document
         }), 200
 
-    except Exception:
+    except Exception as error:
+        print("Get document details error:", error)
+
         return jsonify({
             "message": "Unable to retrieve document"
         }), 500
@@ -211,9 +222,13 @@ def get_document_details(document_id):
         if cursor:
             cursor.close()
 
-        if connection and connection.is_connected():
+        if connection and not connection.closed:
             connection.close()
 
+
+# --------------------------------------------------
+# RENAME DOCUMENT
+# --------------------------------------------------
 
 @owner_bp.route("/documents/<int:document_id>", methods=["PATCH"])
 @role_required("OWNER")
@@ -221,7 +236,14 @@ def update_document(document_id):
 
     data = request.get_json(silent=True) or {}
 
-    new_name = data.get("document_name", "").strip()
+    new_name = data.get("document_name", "")
+
+    if not isinstance(new_name, str):
+        return jsonify({
+            "message": "Enter a valid document name"
+        }), 400
+
+    new_name = new_name.strip()
 
     if not new_name or len(new_name) > 255:
         return jsonify({
@@ -264,9 +286,11 @@ def update_document(document_id):
             "document_name": new_name
         }), 200
 
-    except Exception:
-        if connection and connection.is_connected():
+    except Exception as error:
+        if connection and not connection.closed:
             connection.rollback()
+
+        print("Rename document error:", error)
 
         return jsonify({
             "message": "Unable to rename document"
@@ -276,10 +300,13 @@ def update_document(document_id):
         if cursor:
             cursor.close()
 
-        if connection and connection.is_connected():
+        if connection and not connection.closed:
             connection.close()
 
 
+# --------------------------------------------------
+# ARCHIVE DOCUMENT
+# --------------------------------------------------
 
 @owner_bp.route("/documents/<int:document_id>", methods=["DELETE"])
 @role_required("OWNER")
@@ -290,8 +317,6 @@ def archive_document(document_id):
 
     try:
         connection = get_db_connection()
-        connection.start_transaction()
-
         cursor = connection.cursor()
 
         cursor.execute(
@@ -333,9 +358,11 @@ def archive_document(document_id):
             "message": "Document archived successfully"
         }), 200
 
-    except Exception:
-        if connection:
+    except Exception as error:
+        if connection and not connection.closed:
             connection.rollback()
+
+        print("Archive document error:", error)
 
         return jsonify({
             "message": "Unable to archive document"
@@ -345,11 +372,13 @@ def archive_document(document_id):
         if cursor:
             cursor.close()
 
-        if connection and connection.is_connected():
+        if connection and not connection.closed:
             connection.close()
 
 
-
+# --------------------------------------------------
+# SHARE DOCUMENT WITH VIEWER
+# --------------------------------------------------
 
 @owner_bp.route(
     "/documents/<int:document_id>/share",
@@ -360,9 +389,14 @@ def share_document(document_id):
 
     data = request.get_json(silent=True) or {}
 
-    viewer_email = data.get(
-        "viewer_email", ""
-    ).strip().lower()
+    viewer_email = data.get("viewer_email", "")
+
+    if not isinstance(viewer_email, str):
+        return jsonify({
+            "message": "Invalid Viewer email"
+        }), 400
+
+    viewer_email = viewer_email.strip().lower()
 
     can_view = data.get("can_view", True)
     can_download = data.get("can_download", False)
@@ -412,9 +446,7 @@ def share_document(document_id):
 
     try:
         connection = get_db_connection()
-        connection.start_transaction()
-
-        cursor = connection.cursor(dictionary=True)
+        cursor = connection.cursor()
 
         # Verify document ownership
         cursor.execute(
@@ -440,7 +472,7 @@ def share_document(document_id):
                 "message": "Document not found"
             }), 404
 
-        # Find the Viewer
+        # Find the active Viewer
         cursor.execute(
             """
             SELECT users.user_id
@@ -497,6 +529,7 @@ def share_document(document_id):
                 expires_at
             )
             VALUES (%s, %s, %s, %s, %s)
+            RETURNING permission_id
             """,
             (
                 document_id,
@@ -507,7 +540,7 @@ def share_document(document_id):
             )
         )
 
-        permission_id = cursor.lastrowid
+        permission_id = cursor.fetchone()["permission_id"]
 
         connection.commit()
 
@@ -519,9 +552,11 @@ def share_document(document_id):
             "can_download": can_download
         }), 201
 
-    except Exception:
-        if connection:
+    except Exception as error:
+        if connection and not connection.closed:
             connection.rollback()
+
+        print("Share document error:", error)
 
         return jsonify({
             "message": "Unable to share document"
@@ -531,9 +566,13 @@ def share_document(document_id):
         if cursor:
             cursor.close()
 
-        if connection and connection.is_connected():
+        if connection and not connection.closed:
             connection.close()
 
+
+# --------------------------------------------------
+# REVOKE VIEWER PERMISSION
+# --------------------------------------------------
 
 @owner_bp.route(
     "/permissions/<int:permission_id>",
@@ -549,18 +588,17 @@ def revoke_permission(permission_id):
         connection = get_db_connection()
         cursor = connection.cursor()
 
+        # PostgreSQL UPDATE ... FROM syntax
         cursor.execute(
             """
-            UPDATE document_permissions
-            JOIN documents
-                ON document_permissions.document_id =
-                   documents.document_id
-            SET document_permissions.revoked_at =
-                CURRENT_TIMESTAMP
-            WHERE document_permissions.permission_id = %s
-              AND documents.owner_id = %s
-              AND documents.is_deleted = FALSE
-              AND document_permissions.revoked_at IS NULL
+            UPDATE document_permissions AS dp
+            SET revoked_at = CURRENT_TIMESTAMP
+            FROM documents AS d
+            WHERE dp.document_id = d.document_id
+              AND dp.permission_id = %s
+              AND d.owner_id = %s
+              AND d.is_deleted = FALSE
+              AND dp.revoked_at IS NULL
             """,
             (
                 permission_id,
@@ -581,9 +619,11 @@ def revoke_permission(permission_id):
             "message": "Viewer access revoked successfully"
         }), 200
 
-    except Exception:
-        if connection and connection.is_connected():
+    except Exception as error:
+        if connection and not connection.closed:
             connection.rollback()
+
+        print("Revoke permission error:", error)
 
         return jsonify({
             "message": "Unable to revoke permission"
@@ -593,11 +633,14 @@ def revoke_permission(permission_id):
         if cursor:
             cursor.close()
 
-        if connection and connection.is_connected():
+        if connection and not connection.closed:
             connection.close()
 
 
-# Get sharing permissions for an Owner's document
+# --------------------------------------------------
+# GET DOCUMENT PERMISSIONS
+# --------------------------------------------------
+
 @owner_bp.route(
     "/documents/<int:document_id>/permissions",
     methods=["GET"]
@@ -610,18 +653,21 @@ def get_document_permissions(document_id):
 
     try:
         connection = get_db_connection()
-        cursor = connection.cursor(dictionary=True)
+        cursor = connection.cursor()
 
         owner_id = g.current_user["user_id"]
 
-        # Verify that this document belongs to the logged-in Owner
-        cursor.execute("""
+        # Verify document ownership
+        cursor.execute(
+            """
             SELECT document_id
             FROM documents
             WHERE document_id = %s
               AND owner_id = %s
               AND is_deleted = FALSE
-        """, (document_id, owner_id))
+            """,
+            (document_id, owner_id)
+        )
 
         document = cursor.fetchone()
 
@@ -632,7 +678,8 @@ def get_document_permissions(document_id):
             }), 404
 
         # Retrieve sharing permissions
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT
                 p.permission_id,
                 p.viewer_id,
@@ -648,7 +695,9 @@ def get_document_permissions(document_id):
                 ON p.viewer_id = u.user_id
             WHERE p.document_id = %s
             ORDER BY p.granted_at DESC
-        """, (document_id,))
+            """,
+            (document_id,)
+        )
 
         permissions = cursor.fetchall()
 
@@ -675,17 +724,25 @@ def get_document_permissions(document_id):
         if cursor:
             cursor.close()
 
-        if connection and connection.is_connected():
+        if connection and not connection.closed:
             connection.close()
+
+
+# --------------------------------------------------
+# GET OWNER ACTIVITY
+# --------------------------------------------------
 
 @owner_bp.route("/activity", methods=["GET"])
 @role_required("OWNER")
 def get_owner_activity():
 
-    connection = get_db_connection()
-    cursor = connection.cursor(dictionary=True)
+    connection = None
+    cursor = None
 
     try:
+        connection = get_db_connection()
+        cursor = connection.cursor()
+
         owner_id = g.current_user["user_id"]
 
         query = """
@@ -712,6 +769,7 @@ def get_owner_activity():
         """
 
         cursor.execute(query, (owner_id,))
+
         activities = cursor.fetchall()
 
         for activity in activities:
@@ -725,13 +783,16 @@ def get_owner_activity():
             "activities": activities
         }), 200
 
-    except Exception as e:
-        print("Owner activity error:", str(e))
+    except Exception as error:
+        print("Owner activity error:", str(error))
 
         return jsonify({
             "message": "Unable to retrieve document activity."
         }), 500
 
     finally:
-        cursor.close()
-        connection.close()
+        if cursor:
+            cursor.close()
+
+        if connection and not connection.closed:
+            connection.close()

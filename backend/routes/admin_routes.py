@@ -1,15 +1,23 @@
 
 
+
 from flask import Blueprint, jsonify, request, g
+
 from middleware.permissions import role_required
 from db import get_db_connection
 from services.audit_verification import verify_audit_chain
+
 
 admin_bp = Blueprint(
     "admin",
     __name__,
     url_prefix="/api/admin"
 )
+
+
+# --------------------------------------------------
+# ADMIN DASHBOARD
+# --------------------------------------------------
 
 @admin_bp.route("/dashboard", methods=["GET"])
 @role_required("ADMIN")
@@ -20,7 +28,7 @@ def dashboard():
 
     try:
         connection = get_db_connection()
-        cursor = connection.cursor(dictionary=True)
+        cursor = connection.cursor()
 
         # Total registered users
         cursor.execute(
@@ -61,7 +69,9 @@ def dashboard():
             "denied_access": denied_access
         }), 200
 
-    except Exception:
+    except Exception as error:
+        print("Admin dashboard error:", error)
+
         return jsonify({
             "message": "Unable to load dashboard"
         }), 500
@@ -70,9 +80,13 @@ def dashboard():
         if cursor:
             cursor.close()
 
-        if connection and connection.is_connected():
+        if connection and not connection.closed:
             connection.close()
 
+
+# --------------------------------------------------
+# GET ALL USERS / SEARCH USERS
+# --------------------------------------------------
 
 @admin_bp.route("/users", methods=["GET"])
 @role_required("ADMIN")
@@ -86,7 +100,7 @@ def get_users():
         search = request.args.get("search", "").strip()
 
         connection = get_db_connection()
-        cursor = connection.cursor(dictionary=True)
+        cursor = connection.cursor()
 
         query = """
             SELECT
@@ -99,8 +113,8 @@ def get_users():
             FROM users
             JOIN roles
             ON users.role_id = roles.role_id
-            WHERE users.name LIKE %s
-               OR users.email LIKE %s
+            WHERE users.name ILIKE %s
+               OR users.email ILIKE %s
             ORDER BY users.user_id DESC
         """
 
@@ -115,7 +129,9 @@ def get_users():
             "users": users
         }), 200
 
-    except Exception:
+    except Exception as error:
+        print("Get users error:", error)
+
         return jsonify({
             "message": "Unable to fetch users"
         }), 500
@@ -124,16 +140,28 @@ def get_users():
         if cursor:
             cursor.close()
 
-        if connection and connection.is_connected():
+        if connection and not connection.closed:
             connection.close()
 
+
+# --------------------------------------------------
+# UPDATE USER ROLE
+# --------------------------------------------------
 
 @admin_bp.route("/users/<int:user_id>/role", methods=["PATCH"])
 @role_required("ADMIN")
 def update_user_role(user_id):
 
     data = request.get_json(silent=True) or {}
-    new_role = data.get("role", "").strip().upper()
+
+    new_role = data.get("role", "")
+
+    if not isinstance(new_role, str):
+        return jsonify({
+            "message": "Invalid role format"
+        }), 400
+
+    new_role = new_role.strip().upper()
 
     # Prevent creation of Admin accounts
     if new_role not in ["OWNER", "VIEWER"]:
@@ -152,13 +180,15 @@ def update_user_role(user_id):
 
     try:
         connection = get_db_connection()
-        connection.start_transaction()
-
-        cursor = connection.cursor(dictionary=True)
+        cursor = connection.cursor()
 
         # Check target user
         cursor.execute(
-            "SELECT user_id FROM users WHERE user_id = %s",
+            """
+            SELECT user_id
+            FROM users
+            WHERE user_id = %s
+            """,
             (user_id,)
         )
 
@@ -166,13 +196,18 @@ def update_user_role(user_id):
 
         if not target_user:
             connection.rollback()
+
             return jsonify({
                 "message": "User not found"
             }), 404
 
         # Get role ID
         cursor.execute(
-            "SELECT role_id FROM roles WHERE role_name = %s",
+            """
+            SELECT role_id
+            FROM roles
+            WHERE role_name = %s
+            """,
             (new_role,)
         )
 
@@ -180,6 +215,7 @@ def update_user_role(user_id):
 
         if not role:
             connection.rollback()
+
             return jsonify({
                 "message": "Role not found"
             }), 404
@@ -202,9 +238,11 @@ def update_user_role(user_id):
             "new_role": new_role
         }), 200
 
-    except Exception:
-        if connection:
+    except Exception as error:
+        if connection and not connection.closed:
             connection.rollback()
+
+        print("Update user role error:", error)
 
         return jsonify({
             "message": "Unable to update user role"
@@ -214,16 +252,28 @@ def update_user_role(user_id):
         if cursor:
             cursor.close()
 
-        if connection and connection.is_connected():
+        if connection and not connection.closed:
             connection.close()
 
+
+# --------------------------------------------------
+# UPDATE USER ACCOUNT STATUS
+# --------------------------------------------------
 
 @admin_bp.route("/users/<int:user_id>/status", methods=["PATCH"])
 @role_required("ADMIN")
 def update_user_status(user_id):
 
     data = request.get_json(silent=True) or {}
-    new_status = data.get("status", "").strip().upper()
+
+    new_status = data.get("status", "")
+
+    if not isinstance(new_status, str):
+        return jsonify({
+            "message": "Invalid account status format"
+        }), 400
+
+    new_status = new_status.strip().upper()
 
     allowed_statuses = [
         "ACTIVE",
@@ -246,9 +296,7 @@ def update_user_status(user_id):
 
     try:
         connection = get_db_connection()
-        connection.start_transaction()
-
-        cursor = connection.cursor(dictionary=True)
+        cursor = connection.cursor()
 
         # Lock the target user row during this transaction
         cursor.execute(
@@ -270,6 +318,7 @@ def update_user_status(user_id):
 
         if not target_user:
             connection.rollback()
+
             return jsonify({
                 "message": "User not found"
             }), 404
@@ -296,6 +345,7 @@ def update_user_status(user_id):
 
             if count <= 1:
                 connection.rollback()
+
                 return jsonify({
                     "message": "Cannot deactivate the last active Admin"
                 }), 403
@@ -318,9 +368,11 @@ def update_user_status(user_id):
             "status": new_status
         }), 200
 
-    except Exception:
-        if connection:
+    except Exception as error:
+        if connection and not connection.closed:
             connection.rollback()
+
+        print("Update user status error:", error)
 
         return jsonify({
             "message": "Unable to update account status"
@@ -330,9 +382,14 @@ def update_user_status(user_id):
         if cursor:
             cursor.close()
 
-        if connection and connection.is_connected():
+        if connection and not connection.closed:
             connection.close()
 
+
+# --------------------------------------------------
+# GET ALL DOCUMENTS
+# ADMIN CAN VIEW METADATA ONLY
+# --------------------------------------------------
 
 @admin_bp.route("/documents", methods=["GET"])
 @role_required("ADMIN")
@@ -343,7 +400,7 @@ def get_all_documents():
 
     try:
         connection = get_db_connection()
-        cursor = connection.cursor(dictionary=True)
+        cursor = connection.cursor()
 
         cursor.execute(
             """
@@ -370,7 +427,9 @@ def get_all_documents():
             "documents": documents
         }), 200
 
-    except Exception:
+    except Exception as error:
+        print("Get documents error:", error)
+
         return jsonify({
             "message": "Unable to fetch documents"
         }), 500
@@ -379,9 +438,13 @@ def get_all_documents():
         if cursor:
             cursor.close()
 
-        if connection and connection.is_connected():
+        if connection and not connection.closed:
             connection.close()
 
+
+# --------------------------------------------------
+# VIEW SECURITY LOGS
+# --------------------------------------------------
 
 @admin_bp.route("/security-logs", methods=["GET"])
 @role_required("ADMIN")
@@ -392,7 +455,7 @@ def security_logs():
 
     try:
         connection = get_db_connection()
-        cursor = connection.cursor(dictionary=True)
+        cursor = connection.cursor()
 
         # Get login history
         cursor.execute(
@@ -443,7 +506,9 @@ def security_logs():
             "document_access_history": access_history
         }), 200
 
-    except Exception:
+    except Exception as error:
+        print("Security logs error:", error)
+
         return jsonify({
             "message": "Unable to fetch security logs"
         }), 500
@@ -452,12 +517,14 @@ def security_logs():
         if cursor:
             cursor.close()
 
-        if connection and connection.is_connected():
+        if connection and not connection.closed:
             connection.close()
 
 
+# --------------------------------------------------
+# VERIFY COMPLETE AUDIT HASH CHAIN
+# --------------------------------------------------
 
-# Verify the complete audit hash chain
 @admin_bp.route("/audit/verify", methods=["GET"])
 @role_required("ADMIN")
 def verify_system_audit():
@@ -480,3 +547,4 @@ def verify_system_audit():
             "success": False,
             "message": "Unable to verify audit records"
         }), 500
+

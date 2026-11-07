@@ -1,5 +1,4 @@
 
-
 import hashlib
 import json
 from datetime import datetime, timezone
@@ -17,25 +16,16 @@ def record_audit_event(
 ):
     connection = None
     cursor = None
-    lock_acquired = False
 
     try:
         connection = get_db_connection()
-        cursor = connection.cursor(dictionary=True)
+        cursor = connection.cursor()
 
-        # Serialize audit writes so two requests don't use
-        # the same previous hash.
+        # PostgreSQL advisory lock:
+        # Ensures only one request writes to the audit chain at a time.
         cursor.execute(
-            "SELECT GET_LOCK(%s, 10) AS acquired",
-            ("trustworld_audit_chain",)
+            "SELECT pg_advisory_xact_lock(724681923)"
         )
-
-        lock_result = cursor.fetchone()
-
-        if not lock_result or lock_result["acquired"] != 1:
-            raise RuntimeError("Could not acquire audit log lock")
-
-        lock_acquired = True
 
         # Find the most recent audit hash
         cursor.execute("""
@@ -105,6 +95,7 @@ def record_audit_event(
             current_hash
         ))
 
+        # Commit also releases the transaction-level advisory lock
         connection.commit()
 
     except Exception:
@@ -113,17 +104,9 @@ def record_audit_event(
         raise
 
     finally:
-        if cursor and lock_acquired:
-            try:
-                cursor.execute(
-                    "SELECT RELEASE_LOCK(%s)",
-                    ("trustworld_audit_chain",)
-                )
-            except Exception:
-                pass
-
         if cursor:
             cursor.close()
 
-        if connection and connection.is_connected():
+        if connection and not connection.closed:
             connection.close()
+

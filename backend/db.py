@@ -1,19 +1,24 @@
 
 
-import mysql.connector
-import os
 
+import os
+import psycopg
+from psycopg.rows import dict_row
 from dotenv import load_dotenv
 
 load_dotenv()
 
 
 def get_db_connection():
-    connection = mysql.connector.connect(
-        host=os.getenv("DB_HOST"),
-        user=os.getenv("DB_USER"),
-        password=os.getenv("DB_PASSWORD"),
-        database=os.getenv("DB_NAME")
+    database_url = os.getenv("DATABASE_URL")
+
+    if not database_url:
+        raise RuntimeError("DATABASE_URL is not configured in the .env file")
+
+    connection = psycopg.connect(
+        database_url,
+        row_factory=dict_row
     )
 
     return connection
+

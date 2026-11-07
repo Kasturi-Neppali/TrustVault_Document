@@ -1,12 +1,11 @@
 
 
-import os
+from io import BytesIO
 
 from flask import (
     Blueprint,
     jsonify,
     g,
-    current_app,
     request,
     send_file
 )
@@ -14,6 +13,8 @@ from flask import (
 from db import get_db_connection
 from middleware.permissions import role_required
 from services.audit_service import record_audit_event
+from services.file_service import download_file
+
 
 viewer_bp = Blueprint(
     "viewer",
@@ -22,7 +23,10 @@ viewer_bp = Blueprint(
 )
 
 
-# 1. View documents shared with the logged-in Viewer
+# --------------------------------------------------
+# 1. VIEW DOCUMENTS SHARED WITH THE VIEWER
+# --------------------------------------------------
+
 @viewer_bp.route("/documents", methods=["GET"])
 @role_required("VIEWER")
 def get_shared_documents():
@@ -31,15 +35,13 @@ def get_shared_documents():
     cursor = None
 
     try:
-        # Connect to MySQL
         connection = get_db_connection()
-        cursor = connection.cursor(dictionary=True)
+        cursor = connection.cursor()
 
-        # Get the logged-in Viewer's ID from the JWT middleware
         viewer_id = g.current_user["user_id"]
 
-        # Find documents shared with this Viewer
-        query = """
+        cursor.execute(
+            """
             SELECT
                 d.document_id,
                 d.document_name,
@@ -57,22 +59,30 @@ def get_shared_documents():
                 p.viewer_id = %s
                 AND p.can_view = TRUE
                 AND p.revoked_at IS NULL
-                AND (p.expires_at IS NULL
-                     OR p.expires_at > CURRENT_TIMESTAMP)
+                AND (
+                    p.expires_at IS NULL
+                    OR p.expires_at > CURRENT_TIMESTAMP
+                )
                 AND d.is_deleted = FALSE
             ORDER BY p.granted_at DESC
-        """
+            """,
+            (viewer_id,)
+        )
 
-        cursor.execute(query, (viewer_id,))
         documents = cursor.fetchall()
 
         # Convert dates into JSON-friendly strings
         for document in documents:
+
             if document["created_at"]:
-                document["created_at"] = document["created_at"].isoformat()
+                document["created_at"] = (
+                    document["created_at"].isoformat()
+                )
 
             if document["expires_at"]:
-                document["expires_at"] = document["expires_at"].isoformat()
+                document["expires_at"] = (
+                    document["expires_at"].isoformat()
+                )
 
         return jsonify({
             "success": True,
@@ -81,6 +91,7 @@ def get_shared_documents():
         }), 200
 
     except Exception as error:
+
         print("Viewer documents error:", error)
 
         return jsonify({
@@ -89,14 +100,18 @@ def get_shared_documents():
         }), 500
 
     finally:
+
         if cursor:
             cursor.close()
 
-        if connection and connection.is_connected():
+        if connection and not connection.closed:
             connection.close()
 
 
-# 2. Securely open a shared document
+# --------------------------------------------------
+# 2. SECURELY VIEW A SHARED DOCUMENT
+# --------------------------------------------------
+
 @viewer_bp.route(
     "/documents/<int:document_id>/view",
     methods=["GET"]
@@ -112,10 +127,11 @@ def view_shared_document(document_id):
 
     try:
         connection = get_db_connection()
-        cursor = connection.cursor(dictionary=True)
+        cursor = connection.cursor()
 
-        # First, find the document
-        cursor.execute("""
+        # Step 1: Find the document
+        cursor.execute(
+            """
             SELECT
                 document_id,
                 document_name,
@@ -123,12 +139,15 @@ def view_shared_document(document_id):
             FROM documents
             WHERE document_id = %s
               AND is_deleted = FALSE
-        """, (document_id,))
+            """,
+            (document_id,)
+        )
 
         document = cursor.fetchone()
 
         # Document does not exist or is archived
         if not document:
+
             record_audit_event(
                 viewer_id,
                 None,
@@ -143,8 +162,9 @@ def view_shared_document(document_id):
                 "message": "Document is not available"
             }), 404
 
-        # Check this Viewer's active viewing permission
-        cursor.execute("""
+        # Step 2: Check active viewing permission
+        cursor.execute(
+            """
             SELECT permission_id
             FROM document_permissions
             WHERE document_id = %s
@@ -156,12 +176,15 @@ def view_shared_document(document_id):
                     OR expires_at > CURRENT_TIMESTAMP
               )
             LIMIT 1
-        """, (document_id, viewer_id))
+            """,
+            (document_id, viewer_id)
+        )
 
         permission = cursor.fetchone()
 
         # Permission missing, revoked or expired
         if not permission:
+
             record_audit_event(
                 viewer_id,
                 document_id,
@@ -176,39 +199,10 @@ def view_shared_document(document_id):
                 "message": "You do not have permission to view this document"
             }), 403
 
-        # Get the private upload folder
-        upload_folder = os.path.realpath(
-            current_app.config["UPLOAD_FOLDER"]
-        )
+        # Step 3: Retrieve the document from private Supabase Storage
+        file_content = download_file(document["storage_path"])
 
-        # Only use the stored filename, never a client-supplied path
-        stored_name = os.path.basename(document["storage_path"])
-
-        file_path = os.path.realpath(
-            os.path.join(upload_folder, stored_name)
-        )
-
-        # Make sure the file is inside the private upload folder
-        if os.path.commonpath([upload_folder, file_path]) != upload_folder:
-            raise RuntimeError("Invalid document storage path")
-
-        # Check that the file actually exists
-        if not os.path.isfile(file_path):
-            record_audit_event(
-                viewer_id,
-                document_id,
-                "DOCUMENT_VIEW",
-                "DENIED",
-                "FILE_NOT_FOUND",
-                ip_address
-            )
-
-            return jsonify({
-                "success": False,
-                "message": "Document file is unavailable"
-            }), 404
-
-        # Record successful access before serving the file
+        # Step 5: Record successful authorization
         record_audit_event(
             viewer_id,
             document_id,
@@ -218,14 +212,16 @@ def view_shared_document(document_id):
             ip_address
         )
 
+        # Step 6: Send document for viewing
         return send_file(
-            file_path,
+            BytesIO(file_content),
             as_attachment=False,
             download_name=document["document_name"],
             conditional=True
         )
 
     except Exception as error:
+
         print("Secure document viewing error:", error)
 
         return jsonify({
@@ -234,14 +230,18 @@ def view_shared_document(document_id):
         }), 500
 
     finally:
+
         if cursor:
             cursor.close()
 
-        if connection and connection.is_connected():
+        if connection and not connection.closed:
             connection.close()
 
 
-# 3. Securely download a shared document
+# --------------------------------------------------
+# 3. SECURELY DOWNLOAD A SHARED DOCUMENT
+# --------------------------------------------------
+
 @viewer_bp.route(
     "/documents/<int:document_id>/download",
     methods=["GET"]
@@ -257,10 +257,11 @@ def download_shared_document(document_id):
 
     try:
         connection = get_db_connection()
-        cursor = connection.cursor(dictionary=True)
+        cursor = connection.cursor()
 
-        # Step 1: Check whether the document exists
-        cursor.execute("""
+        # Step 1: Check whether document exists
+        cursor.execute(
+            """
             SELECT
                 document_id,
                 document_name,
@@ -268,11 +269,14 @@ def download_shared_document(document_id):
             FROM documents
             WHERE document_id = %s
               AND is_deleted = FALSE
-        """, (document_id,))
+            """,
+            (document_id,)
+        )
 
         document = cursor.fetchone()
 
         if not document:
+
             record_audit_event(
                 viewer_id,
                 None,
@@ -287,8 +291,9 @@ def download_shared_document(document_id):
                 "message": "Document is not available"
             }), 404
 
-        # Step 2: Check both viewing and downloading permissions
-        cursor.execute("""
+        # Step 2: Check viewing and downloading permissions
+        cursor.execute(
+            """
             SELECT permission_id
             FROM document_permissions
             WHERE document_id = %s
@@ -301,12 +306,15 @@ def download_shared_document(document_id):
                     OR expires_at > CURRENT_TIMESTAMP
               )
             LIMIT 1
-        """, (document_id, viewer_id))
+            """,
+            (document_id, viewer_id)
+        )
 
         permission = cursor.fetchone()
 
-        # Step 3: Reject users without download permission
+        # Step 3: Reject unauthorized download
         if not permission:
+
             record_audit_event(
                 viewer_id,
                 document_id,
@@ -321,38 +329,8 @@ def download_shared_document(document_id):
                 "message": "You do not have permission to download this document"
             }), 403
 
-        # Step 4: Resolve the private file path
-        upload_folder = os.path.realpath(
-            current_app.config["UPLOAD_FOLDER"]
-        )
-
-        stored_name = os.path.basename(document["storage_path"])
-
-        file_path = os.path.realpath(
-            os.path.join(upload_folder, stored_name)
-        )
-
-        # Prevent path traversal outside private storage
-        if os.path.commonpath(
-            [upload_folder, file_path]
-        ) != upload_folder:
-            raise RuntimeError("Invalid document storage path")
-
-        # Step 5: Check whether the file exists
-        if not os.path.isfile(file_path):
-            record_audit_event(
-                viewer_id,
-                document_id,
-                "DOCUMENT_DOWNLOAD",
-                "DENIED",
-                "FILE_NOT_FOUND",
-                ip_address
-            )
-
-            return jsonify({
-                "success": False,
-                "message": "Document file is unavailable"
-            }), 404
+        # Step 4: Retrieve the document from private Supabase Storage
+        file_content = download_file(document["storage_path"])
 
         # Step 6: Record successful download authorization
         record_audit_event(
@@ -364,15 +342,16 @@ def download_shared_document(document_id):
             ip_address
         )
 
-        # Step 7: Send the file as a download
+        # Step 7: Send file as download
         return send_file(
-            file_path,
+            BytesIO(file_content),
             as_attachment=True,
             download_name=document["document_name"],
             conditional=True
         )
 
     except Exception as error:
+
         print("Secure document download error:", error)
 
         return jsonify({
@@ -381,14 +360,18 @@ def download_shared_document(document_id):
         }), 500
 
     finally:
+
         if cursor:
             cursor.close()
 
-        if connection and connection.is_connected():
+        if connection and not connection.closed:
             connection.close()
 
 
-# 4. View the logged-in Viewer's own activity history
+# --------------------------------------------------
+# 4. VIEW VIEWER ACTIVITY HISTORY
+# --------------------------------------------------
+
 @viewer_bp.route("/activity", methods=["GET"])
 @role_required("VIEWER")
 def get_viewer_activity():
@@ -398,12 +381,13 @@ def get_viewer_activity():
 
     try:
         connection = get_db_connection()
-        cursor = connection.cursor(dictionary=True)
+        cursor = connection.cursor()
 
         viewer_id = g.current_user["user_id"]
 
         # Retrieve only this Viewer's audit records
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT
                 a.log_id,
                 a.document_id,
@@ -418,12 +402,15 @@ def get_viewer_activity():
             WHERE a.user_id = %s
             ORDER BY a.log_id DESC
             LIMIT 100
-        """, (viewer_id,))
+            """,
+            (viewer_id,)
+        )
 
         activities = cursor.fetchall()
 
         # Convert timestamps for JSON
         for activity in activities:
+
             if activity["timestamp"]:
                 activity["timestamp"] = (
                     activity["timestamp"].isoformat()
@@ -436,6 +423,7 @@ def get_viewer_activity():
         }), 200
 
     except Exception as error:
+
         print("Viewer activity error:", error)
 
         return jsonify({
@@ -444,8 +432,9 @@ def get_viewer_activity():
         }), 500
 
     finally:
+
         if cursor:
             cursor.close()
 
-        if connection and connection.is_connected():
+        if connection and not connection.closed:
             connection.close()

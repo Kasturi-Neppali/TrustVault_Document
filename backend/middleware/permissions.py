@@ -30,7 +30,7 @@ def role_required(*allowed_roles):
 
                 # Step 3: Connect to database
                 connection = get_db_connection()
-                cursor = connection.cursor(dictionary=True)
+                cursor = connection.cursor()
 
                 # Step 4: Get current role and account status
                 cursor.execute(
@@ -80,6 +80,8 @@ def role_required(*allowed_roles):
                         "message": "Invalid or expired authentication token"
                     }), 401
 
+                print("Authorization error:", error)
+
                 return jsonify({
                     "message": "Authorization service unavailable"
                 }), 500
@@ -88,7 +90,7 @@ def role_required(*allowed_roles):
                 if cursor:
                     cursor.close()
 
-                if connection and connection.is_connected():
+                if connection and not connection.closed:
                     connection.close()
 
             # Step 9: Allow authorized request
@@ -97,3 +99,5 @@ def role_required(*allowed_roles):
         return wrapper
 
     return decorator
+
+

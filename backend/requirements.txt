@@ -1,8 +1,11 @@
 
 
+
 Flask
-mysql-connector-python
-bcrypt
-Flask-JWT-Extended
-python-dotenv
 Flask-Cors
+Flask-JWT-Extended
+bcrypt
+python-dotenv
+psycopg[binary]
+supabase
+gunicorn
