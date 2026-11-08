@@ -1,4 +1,4 @@
-# TrustWorld -- Project Documentation
+# TrustVault -- Project Documentation
 
 ## 1. Title
 
