@@ -1,5 +1,4 @@
 
-
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { loginUser } from "../services/authService";
@@ -19,10 +18,8 @@ function Login() {
         setLoading(true);
 
         try {
-            // Send login details to Flask
             const data = await loginUser(email, password);
 
-            // Get token and role from backend response
             const token = data.access_token;
             const role = data.role || data.user?.role;
 
@@ -32,7 +29,6 @@ function Login() {
                 );
             }
 
-            // Store login information
             localStorage.setItem("token", token);
             localStorage.setItem("role", role);
 
@@ -43,7 +39,6 @@ function Login() {
                 );
             }
 
-            // Redirect according to user role
             if (role === "ADMIN") {
                 navigate("/admin");
             } else if (role === "OWNER") {
@@ -62,7 +57,6 @@ function Login() {
 
             setError(message);
 
-            // Clear any incomplete login state
             localStorage.removeItem("token");
             localStorage.removeItem("role");
             localStorage.removeItem("user");
@@ -93,7 +87,6 @@ function Login() {
                 )}
 
                 <form onSubmit={handleLogin}>
-
                     <div className="form-group">
                         <label htmlFor="email">Email Address</label>
 
@@ -127,7 +120,6 @@ function Login() {
                     >
                         {loading ? "Signing in..." : "Login"}
                     </button>
-
                 </form>
 
                 <p className="auth-footer">

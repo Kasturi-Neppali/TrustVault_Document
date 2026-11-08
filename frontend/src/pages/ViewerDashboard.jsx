@@ -11,7 +11,9 @@ import {
 
 function ViewerDashboard() {
     const navigate = useNavigate();
+
     const [activeTab, setActiveTab] = useState("overview");
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
     const [documents, setDocuments] = useState([]);
     const [activities, setActivities] = useState([]);
@@ -66,9 +68,7 @@ function ViewerDashboard() {
                 document.document_id
             );
 
-            // Create a temporary browser URL
             const fileUrl = URL.createObjectURL(fileBlob);
-
             const newWindow = window.open(fileUrl, "_blank");
 
             if (!newWindow) {
@@ -79,10 +79,8 @@ function ViewerDashboard() {
 
             setMessage("Document opened successfully.");
 
-            // Refresh activity after successful access
             await loadActivities();
 
-            // Release temporary URL when the new tab is closed
             const cleanup = window.setInterval(() => {
                 if (newWindow.closed) {
                     URL.revokeObjectURL(fileUrl);
@@ -102,6 +100,14 @@ function ViewerDashboard() {
         }
     };
 
+    // Create download link
+    const documentRef = (fileUrl, fileName) => {
+        const link = window.document.createElement("a");
+        link.href = fileUrl;
+        link.download = fileName;
+        return link;
+    };
+
     // Download document
     const handleDownload = async (document) => {
         setError("");
@@ -114,10 +120,12 @@ function ViewerDashboard() {
 
             const fileUrl = URL.createObjectURL(fileBlob);
 
-            const link = documentRef(fileUrl, document.document_name);
+            const link = documentRef(
+                fileUrl,
+                document.document_name
+            );
 
             link.click();
-
             URL.revokeObjectURL(fileUrl);
 
             setMessage("Document download started.");
@@ -136,44 +144,63 @@ function ViewerDashboard() {
         }
     };
 
-    // Create download link
-    const documentRef = (fileUrl, fileName) => {
-        const link = window.document.createElement("a");
-
-        link.href = fileUrl;
-        link.download = fileName;
-
-        return link;
+    // Change tab
+    const changeTab = (tab) => {
+        setActiveTab(tab);
+        setMobileMenuOpen(false);
+        setError("");
+        setMessage("");
     };
 
     // Logout
     const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("role");
-    localStorage.removeItem("user");
+        localStorage.removeItem("token");
+        localStorage.removeItem("role");
+        localStorage.removeItem("user");
 
-    navigate("/login", { replace: true });
-};
+        navigate("/login", { replace: true });
+    };
 
     return (
         <div className="viewer-layout">
 
-            {/* Sidebar */}
-            <aside className="viewer-sidebar">
-
+            {/* Mobile header */}
+            <div className="viewer-mobile-header">
                 <h2>TrustWorld</h2>
 
-                <p className="viewer-sidebar-subtitle">
-                    Viewer Panel
-                </p>
+                <button
+                    type="button"
+                    className="viewer-menu-toggle"
+                    onClick={() =>
+                        setMobileMenuOpen(!mobileMenuOpen)
+                    }
+                    aria-label="Toggle navigation"
+                    aria-expanded={mobileMenuOpen}
+                >
+                    {mobileMenuOpen ? "✕" : "☰"}
+                </button>
+            </div>
 
-                <nav>
+            {/* Sidebar */}
+            <aside
+                className={`viewer-sidebar ${
+                    mobileMenuOpen ? "mobile-open" : ""
+                }`}
+            >
+                <div className="viewer-brand">
+                    <h2>TrustWorld</h2>
 
+                    <p className="viewer-sidebar-subtitle">
+                        Viewer Panel
+                    </p>
+                </div>
+
+                <nav className="viewer-navigation">
                     <button
                         className={
                             activeTab === "overview" ? "active" : ""
                         }
-                        onClick={() => setActiveTab("overview")}
+                        onClick={() => changeTab("overview")}
                     >
                         📊 Overview
                     </button>
@@ -182,7 +209,7 @@ function ViewerDashboard() {
                         className={
                             activeTab === "documents" ? "active" : ""
                         }
-                        onClick={() => setActiveTab("documents")}
+                        onClick={() => changeTab("documents")}
                     >
                         📁 Shared Documents
                     </button>
@@ -191,11 +218,10 @@ function ViewerDashboard() {
                         className={
                             activeTab === "activity" ? "active" : ""
                         }
-                        onClick={() => setActiveTab("activity")}
+                        onClick={() => changeTab("activity")}
                     >
                         🕒 My Activity
                     </button>
-
                 </nav>
 
                 <button
@@ -204,7 +230,6 @@ function ViewerDashboard() {
                 >
                     Logout
                 </button>
-
             </aside>
 
             {/* Main content */}
@@ -241,16 +266,17 @@ function ViewerDashboard() {
 
                 {/* Overview */}
                 {!loading && activeTab === "overview" && (
-                    <section>
-
+                    <section className="viewer-section">
                         <h2>Overview</h2>
 
-                        <div className="viewer-stat-card">
-                            <span>📁</span>
+                        <div className="viewer-overview-grid">
+                            <div className="viewer-stat-card">
+                                <span>📁</span>
 
-                            <div>
-                                <p>Available Shared Documents</p>
-                                <h2>{documents.length}</h2>
+                                <div>
+                                    <p>Available Shared Documents</p>
+                                    <h2>{documents.length}</h2>
+                                </div>
                             </div>
                         </div>
 
@@ -264,18 +290,15 @@ function ViewerDashboard() {
                                 download each document.
                             </p>
                         </div>
-
                     </section>
                 )}
 
                 {/* Shared Documents */}
                 {!loading && activeTab === "documents" && (
-                    <section>
-
+                    <section className="viewer-section">
                         <h2>Shared Documents</h2>
 
                         <div className="viewer-table-container">
-
                             <table>
                                 <thead>
                                     <tr>
@@ -289,10 +312,8 @@ function ViewerDashboard() {
                                 </thead>
 
                                 <tbody>
-
                                     {documents.map((doc) => (
                                         <tr key={doc.document_id}>
-
                                             <td>{doc.document_id}</td>
 
                                             <td>{doc.document_name}</td>
@@ -312,29 +333,32 @@ function ViewerDashboard() {
                                             </td>
 
                                             <td>
-                                                <button
-                                                    onClick={() =>
-                                                        handleView(doc)
-                                                    }
-                                                    disabled={!doc.can_view}
-                                                >
-                                                    View
-                                                </button>
+                                                <div className="viewer-action-buttons">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            handleView(doc)
+                                                        }
+                                                        disabled={!doc.can_view}
+                                                    >
+                                                        View
+                                                    </button>
 
-                                                <button
-                                                    className="viewer-download"
-                                                    onClick={() =>
-                                                        handleDownload(doc)
-                                                    }
-                                                    disabled={
-                                                        !doc.can_view ||
-                                                        !doc.can_download
-                                                    }
-                                                >
-                                                    Download
-                                                </button>
+                                                    <button
+                                                        type="button"
+                                                        className="viewer-download"
+                                                        onClick={() =>
+                                                            handleDownload(doc)
+                                                        }
+                                                        disabled={
+                                                            !doc.can_view ||
+                                                            !doc.can_download
+                                                        }
+                                                    >
+                                                        Download
+                                                    </button>
+                                                </div>
                                             </td>
-
                                         </tr>
                                     ))}
 
@@ -346,23 +370,18 @@ function ViewerDashboard() {
                                             </td>
                                         </tr>
                                     )}
-
                                 </tbody>
                             </table>
-
                         </div>
-
                     </section>
                 )}
 
                 {/* Activity */}
                 {!loading && activeTab === "activity" && (
-                    <section>
-
+                    <section className="viewer-section">
                         <h2>My Activity History</h2>
 
                         <div className="viewer-table-container">
-
                             <table>
                                 <thead>
                                     <tr>
@@ -376,10 +395,8 @@ function ViewerDashboard() {
                                 </thead>
 
                                 <tbody>
-
                                     {activities.map((activity) => (
                                         <tr key={activity.log_id}>
-
                                             <td>{activity.log_id}</td>
 
                                             <td>
@@ -401,7 +418,6 @@ function ViewerDashboard() {
                                                     ).toLocaleString()
                                                     : "-"}
                                             </td>
-
                                         </tr>
                                     ))}
 
@@ -412,12 +428,9 @@ function ViewerDashboard() {
                                             </td>
                                         </tr>
                                     )}
-
                                 </tbody>
                             </table>
-
                         </div>
-
                     </section>
                 )}
 

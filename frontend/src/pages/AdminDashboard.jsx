@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-
 import {
     getAdminDashboard,
     getAllUsers,
@@ -18,6 +17,7 @@ function AdminDashboard() {
     const navigate = useNavigate();
 
     const [activeTab, setActiveTab] = useState("overview");
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
     const [dashboard, setDashboard] = useState({});
     const [users, setUsers] = useState([]);
@@ -31,25 +31,21 @@ function AdminDashboard() {
     const [error, setError] = useState("");
     const [message, setMessage] = useState("");
 
-    // Load dashboard statistics
     const loadDashboard = async () => {
         const data = await getAdminDashboard();
         setDashboard(data.dashboard || data.statistics || data);
     };
 
-    // Load users
     const loadUsers = async (searchText = "") => {
         const data = await getAllUsers(searchText);
         setUsers(data.users || []);
     };
 
-    // Load documents
     const loadDocuments = async () => {
         const data = await getAllDocuments();
         setDocuments(data.documents || []);
     };
 
-    // Load security logs
     const loadSecurityLogs = async () => {
         const data = await getSecurityLogs();
 
@@ -61,7 +57,6 @@ function AdminDashboard() {
         );
     };
 
-    // Load information when dashboard opens
     useEffect(() => {
         const loadInitialData = async () => {
             setLoading(true);
@@ -87,7 +82,13 @@ function AdminDashboard() {
         loadInitialData();
     }, []);
 
-    // Search users
+    const handleTabChange = (tab) => {
+        setActiveTab(tab);
+        setMobileMenuOpen(false);
+        setError("");
+        setMessage("");
+    };
+
     const handleSearch = async (e) => {
         const value = e.target.value;
         setSearch(value);
@@ -102,7 +103,6 @@ function AdminDashboard() {
         }
     };
 
-    // Change user role
     const handleRoleChange = async (userId, role) => {
         setError("");
         setMessage("");
@@ -119,7 +119,6 @@ function AdminDashboard() {
         }
     };
 
-    // Change account status
     const handleStatusChange = async (userId, status) => {
         setError("");
         setMessage("");
@@ -137,7 +136,6 @@ function AdminDashboard() {
         }
     };
 
-    // Verify audit chain
     const handleAuditVerification = async () => {
         setAuditResult(null);
         setError("");
@@ -150,7 +148,6 @@ function AdminDashboard() {
                 data.audit_verification || data
             );
         } catch (err) {
-            // HTTP 409 means the chain was found invalid
             if (err.response?.data?.audit_verification) {
                 setAuditResult(
                     err.response.data.audit_verification
@@ -164,16 +161,14 @@ function AdminDashboard() {
         }
     };
 
-    // Logout
     const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("role");
-    localStorage.removeItem("user");
+        localStorage.removeItem("token");
+        localStorage.removeItem("role");
+        localStorage.removeItem("user");
 
-    navigate("/login", { replace: true });
-};
+        navigate("/login", { replace: true });
+    };
 
-    // Dashboard statistics
     const statistics = [
         {
             title: "Total Users",
@@ -192,65 +187,75 @@ function AdminDashboard() {
         },
         {
             title: "Denied Access",
-            value: dashboard.denied_access ??
-                   dashboard.denied_audit_logs ?? 0,
+            value:
+                dashboard.denied_access ??
+                dashboard.denied_audit_logs ??
+                0,
             icon: "🚫"
         }
+    ];
+
+    const navigationItems = [
+        { id: "overview", label: "📊 Overview" },
+        { id: "users", label: "👥 User Management" },
+        { id: "documents", label: "📁 Documents" },
+        { id: "security", label: "🔒 Security Logs" },
+        { id: "audit", label: "🛡️ Audit Verification" }
     ];
 
     return (
         <div className="admin-layout">
 
-            {/* Sidebar */}
-            <aside className="admin-sidebar">
-
+            {/* Mobile header */}
+            <div className="admin-mobile-header">
                 <h2>TrustWorld</h2>
-                <p className="sidebar-subtitle">Admin Panel</p>
 
-                <nav>
-                    <button
-                        className={activeTab === "overview" ? "active" : ""}
-                        onClick={() => setActiveTab("overview")}
-                    >
-                        📊 Overview
-                    </button>
+                <button
+                    type="button"
+                    className="mobile-menu-button"
+                    onClick={() =>
+                        setMobileMenuOpen(!mobileMenuOpen)
+                    }
+                    aria-label="Toggle navigation menu"
+                    aria-expanded={mobileMenuOpen}
+                >
+                    {mobileMenuOpen ? "✕" : "☰"}
+                </button>
+            </div>
 
-                    <button
-                        className={activeTab === "users" ? "active" : ""}
-                        onClick={() => setActiveTab("users")}
-                    >
-                        👥 User Management
-                    </button>
+            {/* Sidebar */}
+            <aside
+                className={`admin-sidebar ${
+                    mobileMenuOpen ? "mobile-open" : ""
+                }`}
+            >
+                <div className="admin-brand">
+                    <h2>TrustWorld</h2>
+                    <p className="sidebar-subtitle">Admin Panel</p>
+                </div>
 
-                    <button
-                        className={activeTab === "documents" ? "active" : ""}
-                        onClick={() => setActiveTab("documents")}
-                    >
-                        📁 Documents
-                    </button>
-
-                    <button
-                        className={activeTab === "security" ? "active" : ""}
-                        onClick={() => setActiveTab("security")}
-                    >
-                        🔒 Security Logs
-                    </button>
-
-                    <button
-                        className={activeTab === "audit" ? "active" : ""}
-                        onClick={() => setActiveTab("audit")}
-                    >
-                        🛡️ Audit Verification
-                    </button>
+                <nav className="admin-navigation">
+                    {navigationItems.map((item) => (
+                        <button
+                            key={item.id}
+                            type="button"
+                            className={
+                                activeTab === item.id ? "active" : ""
+                            }
+                            onClick={() => handleTabChange(item.id)}
+                        >
+                            {item.label}
+                        </button>
+                    ))}
                 </nav>
 
                 <button
+                    type="button"
                     className="logout-button"
                     onClick={handleLogout}
                 >
                     Logout
                 </button>
-
             </aside>
 
             {/* Main content */}
@@ -285,13 +290,19 @@ function AdminDashboard() {
 
                 {/* Overview */}
                 {!loading && activeTab === "overview" && (
-                    <section>
+                    <section className="admin-section">
                         <h2>System Overview</h2>
 
                         <div className="stats-grid">
                             {statistics.map((item) => (
-                                <div className="stat-card" key={item.title}>
-                                    <span>{item.icon}</span>
+                                <div
+                                    className="stat-card"
+                                    key={item.title}
+                                >
+                                    <span className="stat-icon">
+                                        {item.icon}
+                                    </span>
+
                                     <div>
                                         <p>{item.title}</p>
                                         <h2>{item.value}</h2>
@@ -312,7 +323,7 @@ function AdminDashboard() {
 
                 {/* User Management */}
                 {!loading && activeTab === "users" && (
-                    <section>
+                    <section className="admin-section">
                         <h2>User Management</h2>
 
                         <input
@@ -358,6 +369,7 @@ function AdminDashboard() {
                                                         <option value="OWNER">
                                                             OWNER
                                                         </option>
+
                                                         <option value="VIEWER">
                                                             VIEWER
                                                         </option>
@@ -378,9 +390,11 @@ function AdminDashboard() {
                                                     <option value="ACTIVE">
                                                         ACTIVE
                                                     </option>
+
                                                     <option value="INACTIVE">
                                                         INACTIVE
                                                     </option>
+
                                                     <option value="SUSPENDED">
                                                         SUSPENDED
                                                     </option>
@@ -404,7 +418,7 @@ function AdminDashboard() {
 
                 {/* Documents */}
                 {!loading && activeTab === "documents" && (
-                    <section>
+                    <section className="admin-section">
                         <h2>Document Metadata</h2>
 
                         <div className="table-container">
@@ -454,7 +468,7 @@ function AdminDashboard() {
 
                 {/* Security Logs */}
                 {!loading && activeTab === "security" && (
-                    <section>
+                    <section className="admin-section">
                         <h2>Security Logs</h2>
 
                         <div className="table-container">
@@ -477,7 +491,9 @@ function AdminDashboard() {
                                             <td>{log.log_id}</td>
                                             <td>{log.user_id ?? "-"}</td>
                                             <td>{log.document_id ?? "-"}</td>
-                                            <td>{log.action ?? log.status}</td>
+                                            <td>
+                                                {log.action ?? log.status}
+                                            </td>
                                             <td>{log.result ?? "-"}</td>
                                             <td>{log.reason ?? "-"}</td>
                                             <td>
@@ -509,7 +525,7 @@ function AdminDashboard() {
 
                 {/* Audit Verification */}
                 {!loading && activeTab === "audit" && (
-                    <section>
+                    <section className="admin-section">
                         <h2>Audit Chain Verification</h2>
 
                         <div className="audit-card">
@@ -520,6 +536,7 @@ function AdminDashboard() {
                             </p>
 
                             <button
+                                type="button"
                                 className="verify-button"
                                 onClick={handleAuditVerification}
                             >

@@ -1,5 +1,4 @@
 
-
 import api from "./api";
 
 // Get all documents belonging to the logged-in Owner

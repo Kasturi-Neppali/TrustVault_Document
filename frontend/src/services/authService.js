@@ -1,37 +1,28 @@
 
-
 import api from "./api";
 
-// Login user
 export const loginUser = async (email, password) => {
-    const response = await api.post("/auth/login", {
-        email,
-        password
-    });
+  const response = await api.post("/auth/login", {
+    email,
+    password,
+  });
 
-    return response.data;
+  return response.data;
 };
 
-// Register user
-export const registerUser = async (
+export const registerUser = async (name, email, password, role) => {
+  const response = await api.post("/auth/register", {
     name,
     email,
     password,
-    role
-) => {
-    const response = await api.post("/auth/register", {
-        name,
-        email,
-        password,
-        role
-    });
+    role,
+  });
 
-    return response.data;
+  return response.data;
 };
 
-// Logout user
 export const logoutUser = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("role");
-    localStorage.removeItem("user");
+  localStorage.removeItem("token");
+  localStorage.removeItem("role");
+  localStorage.removeItem("user");
 };

@@ -1,5 +1,4 @@
 
-
 import api from "./api";
 
 // Get documents shared with the logged-in Viewer

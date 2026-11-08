@@ -23,7 +23,6 @@ function Register() {
         setError("");
         setSuccess("");
 
-        // Check password confirmation
         if (password !== confirmPassword) {
             setError("Passwords do not match.");
             return;
@@ -37,7 +36,6 @@ function Register() {
         setLoading(true);
 
         try {
-            // Send registration details to Flask
             const data = await registerUser(
                 name,
                 email,
@@ -49,14 +47,12 @@ function Register() {
                 data.message || "Registration successful! Please log in."
             );
 
-            // Clear form
             setName("");
             setEmail("");
             setPassword("");
             setConfirmPassword("");
             setRole("OWNER");
 
-            // Navigate to login after successful registration
             setTimeout(() => {
                 navigate("/login");
             }, 1500);
@@ -99,7 +95,6 @@ function Register() {
                 )}
 
                 <form onSubmit={handleRegister}>
-
                     <div className="form-group">
                         <label htmlFor="name">Full Name</label>
 
@@ -182,7 +177,6 @@ function Register() {
                     >
                         {loading ? "Creating Account..." : "Register"}
                     </button>
-
                 </form>
 
                 <p className="auth-footer">

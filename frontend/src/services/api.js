@@ -1,36 +1,31 @@
 
 
-
 import axios from "axios";
 
-// Use the deployed backend URL or local backend during development
 const API_BASE_URL =
-    import.meta.env.VITE_API_BASE_URL ||
-    "http://127.0.0.1:5000/api";
+  import.meta.env.VITE_API_BASE_URL ||
+  "http://127.0.0.1:5000/api";
 
-// Create one central Axios instance
 const api = axios.create({
-    baseURL: API_BASE_URL
+  baseURL: API_BASE_URL,
 });
 
-// Automatically attach JWT to protected requests
 api.interceptors.request.use(
-    (config) => {
-        const token = localStorage.getItem("token");
+  (config) => {
+    const token = localStorage.getItem("token");
 
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
-        }
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
 
-        return config;
-    },
-    (error) => Promise.reject(error)
+    return config;
+  },
+  (error) => Promise.reject(error)
 );
 
 export default api;
 
-// Test backend connection
 export const testBackend = async () => {
-    const response = await api.get("/health");
-    return response.data;
+  const response = await api.get("/health");
+  return response.data;
 };

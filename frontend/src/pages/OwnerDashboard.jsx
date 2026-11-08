@@ -1,5 +1,4 @@
 
-
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -14,95 +13,65 @@ import {
     getOwnerActivity
 } from "../services/ownerService";
 
-
 function OwnerDashboard() {
-
-    // --------------------------------------------------
-    // STATE VARIABLES
-    // --------------------------------------------------
     const navigate = useNavigate();
-    const [documents, setDocuments] = useState([]);
 
+    const [documents, setDocuments] = useState([]);
     const [activeTab, setActiveTab] = useState("overview");
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
     const [selectedFile, setSelectedFile] = useState(null);
     const [selectedDocument, setSelectedDocument] = useState(null);
 
-    // Sharing states
     const [viewerEmail, setViewerEmail] = useState("");
     const [canView, setCanView] = useState(true);
     const [canDownload, setCanDownload] = useState(false);
     const [expiresAt, setExpiresAt] = useState("");
 
-    // Rename state
     const [newDocumentName, setNewDocumentName] = useState("");
 
-    // Permission management states
     const [permissions, setPermissions] = useState([]);
     const [permissionDocumentId, setPermissionDocumentId] = useState("");
     const [permissionsLoading, setPermissionsLoading] = useState(false);
 
-    // Activity history states
     const [activities, setActivities] = useState([]);
     const [activityLoading, setActivityLoading] = useState(false);
 
-    // General states
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [message, setMessage] = useState("");
 
-
-    // --------------------------------------------------
-    // LOAD OWNER DOCUMENTS
-    // --------------------------------------------------
-
+    // Load Owner documents
     const loadDocuments = async () => {
-
         const data = await getOwnerDocuments();
-
         setDocuments(data.documents || []);
     };
 
-
-    // Load documents when dashboard opens
     useEffect(() => {
-
         const loadData = async () => {
-
             setLoading(true);
             setError("");
 
             try {
                 await loadDocuments();
-
             } catch (err) {
-
                 setError(
                     err.response?.data?.message ||
                     "Unable to load documents."
                 );
-
             } finally {
-
                 setLoading(false);
             }
         };
 
         loadData();
-
     }, []);
 
-
-    // --------------------------------------------------
-    // UPLOAD DOCUMENT
-    // --------------------------------------------------
-
+    // Upload document
     const handleUpload = async (e) => {
-
         e.preventDefault();
 
         if (!selectedFile) {
-
             setError("Please select a file first.");
             return;
         }
@@ -112,43 +81,30 @@ function OwnerDashboard() {
         setMessage("");
 
         try {
-
             await uploadDocument(selectedFile);
 
             setSelectedFile(null);
-
             e.target.reset();
 
             await loadDocuments();
 
             setMessage("Document uploaded successfully.");
-
             setActiveTab("documents");
-
         } catch (err) {
-
             setError(
                 err.response?.data?.message ||
                 "Document upload failed."
             );
-
         } finally {
-
             setLoading(false);
         }
     };
 
-
-    // --------------------------------------------------
-    // RENAME DOCUMENT
-    // --------------------------------------------------
-
+    // Rename document
     const handleRename = async (documentId) => {
-
         const documentName = newDocumentName.trim();
 
         if (!documentName) {
-
             setError("Enter a document name.");
             return;
         }
@@ -157,18 +113,14 @@ function OwnerDashboard() {
         setMessage("");
 
         try {
-
             await renameDocument(documentId, documentName);
-
             await loadDocuments();
 
             setNewDocumentName("");
             setSelectedDocument(null);
 
             setMessage("Document renamed successfully.");
-
         } catch (err) {
-
             setError(
                 err.response?.data?.message ||
                 "Unable to rename document."
@@ -176,13 +128,8 @@ function OwnerDashboard() {
         }
     };
 
-
-    // --------------------------------------------------
-    // ARCHIVE DOCUMENT
-    // --------------------------------------------------
-
+    // Archive document
     const handleArchive = async (documentId) => {
-
         const confirmed = window.confirm(
             "Are you sure you want to archive this document?"
         );
@@ -193,22 +140,18 @@ function OwnerDashboard() {
         setMessage("");
 
         try {
-
             await archiveDocument(documentId);
-
             await loadDocuments();
 
-            // Clear permission selection if archived document was selected
-            if (String(permissionDocumentId) === String(documentId)) {
-
+            if (
+                String(permissionDocumentId) === String(documentId)
+            ) {
                 setPermissionDocumentId("");
                 setPermissions([]);
             }
 
             setMessage("Document archived successfully.");
-
         } catch (err) {
-
             setError(
                 err.response?.data?.message ||
                 "Unable to archive document."
@@ -216,33 +159,24 @@ function OwnerDashboard() {
         }
     };
 
-
-    // --------------------------------------------------
-    // SHARE DOCUMENT
-    // --------------------------------------------------
-
+    // Share document
     const handleShare = async (e) => {
-
         e.preventDefault();
 
         if (!selectedDocument) {
-
             setError("Please select a document.");
             return;
         }
 
         if (!viewerEmail.trim()) {
-
             setError("Enter the Viewer's email address.");
             return;
         }
 
         if (!canView) {
-
             setError(
                 "Viewing permission is required before sharing a document."
             );
-
             return;
         }
 
@@ -250,7 +184,6 @@ function OwnerDashboard() {
         setMessage("");
 
         try {
-
             await shareDocument(
                 selectedDocument.document_id,
                 viewerEmail.trim(),
@@ -261,23 +194,19 @@ function OwnerDashboard() {
 
             setMessage("Document shared successfully.");
 
-            // Reset form
             setViewerEmail("");
             setCanView(true);
             setCanDownload(false);
             setExpiresAt("");
             setSelectedDocument(null);
 
-            // Refresh permissions if this document is currently selected
             if (
                 String(permissionDocumentId) ===
                 String(selectedDocument.document_id)
             ) {
                 await loadPermissions(selectedDocument.document_id);
             }
-
         } catch (err) {
-
             setError(
                 err.response?.data?.message ||
                 "Unable to share document."
@@ -285,15 +214,9 @@ function OwnerDashboard() {
         }
     };
 
-
-    // --------------------------------------------------
-    // LOAD DOCUMENT PERMISSIONS
-    // --------------------------------------------------
-
+    // Load document permissions
     const loadPermissions = async (documentId) => {
-
         if (!documentId) {
-
             setPermissions([]);
             return;
         }
@@ -302,33 +225,22 @@ function OwnerDashboard() {
         setError("");
 
         try {
-
             const data = await getDocumentPermissions(documentId);
-
             setPermissions(data.permissions || []);
-
         } catch (err) {
-
             setPermissions([]);
 
             setError(
                 err.response?.data?.message ||
                 "Unable to load document permissions."
             );
-
         } finally {
-
             setPermissionsLoading(false);
         }
     };
 
-
-    // --------------------------------------------------
-    // REVOKE VIEWER PERMISSION
-    // --------------------------------------------------
-
+    // Revoke Viewer permission
     const handleRevoke = async (permissionId) => {
-
         const confirmed = window.confirm(
             "Are you sure you want to revoke this Viewer's access?"
         );
@@ -339,16 +251,11 @@ function OwnerDashboard() {
         setMessage("");
 
         try {
-
             await revokePermission(permissionId);
 
             setMessage("Document permission revoked successfully.");
-
-            // Refresh the permissions table
             await loadPermissions(permissionDocumentId);
-
         } catch (err) {
-
             setError(
                 err.response?.data?.message ||
                 "Unable to revoke permission."
@@ -356,158 +263,119 @@ function OwnerDashboard() {
         }
     };
 
-
-    // --------------------------------------------------
-    // LOAD OWNER ACTIVITY HISTORY
-    // --------------------------------------------------
-
+    // Load activity history
     const loadOwnerActivity = async () => {
-
         setActivityLoading(true);
         setError("");
 
         try {
-
             const data = await getOwnerActivity();
-
             setActivities(data.activities || []);
-
         } catch (err) {
-
             setActivities([]);
 
             setError(
                 err.response?.data?.message ||
                 "Unable to load activity history."
             );
-
         } finally {
-
             setActivityLoading(false);
         }
     };
 
+    // Change dashboard tab
+    const changeTab = (tab) => {
+        setActiveTab(tab);
+        setMobileMenuOpen(false);
+        setError("");
+        setMessage("");
 
-    // --------------------------------------------------
-    // LOGOUT
-    // --------------------------------------------------
+        if (tab === "activity") {
+            loadOwnerActivity();
+        }
+    };
 
+    // Logout
     const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("role");
-    localStorage.removeItem("user");
+        localStorage.removeItem("token");
+        localStorage.removeItem("role");
+        localStorage.removeItem("user");
 
-    navigate("/login", { replace: true });
-};
-
-    // --------------------------------------------------
-    // RENDER DASHBOARD
-    // --------------------------------------------------
+        navigate("/login", { replace: true });
+    };
 
     return (
-
         <div className="owner-layout">
 
-            {/* ==========================================
-                SIDEBAR
-            ========================================== */}
-
-            <aside className="owner-sidebar">
-
+            <div className="owner-mobile-header">
                 <h2>TrustWorld</h2>
 
-                <p className="owner-sidebar-subtitle">
-                    Owner Panel
-                </p>
+                <button
+                    type="button"
+                    className="owner-menu-toggle"
+                    onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                    aria-label="Toggle navigation"
+                    aria-expanded={mobileMenuOpen}
+                >
+                    {mobileMenuOpen ? "✕" : "☰"}
+                </button>
+            </div>
 
-                <nav>
+            <aside
+                className={`owner-sidebar ${
+                    mobileMenuOpen ? "mobile-open" : ""
+                }`}
+            >
+                <div className="owner-brand">
+                    <h2>TrustWorld</h2>
+                    <p className="owner-sidebar-subtitle">
+                        Owner Panel
+                    </p>
+                </div>
 
+                <nav className="owner-navigation">
                     <button
-                        className={
-                            activeTab === "overview" ? "active" : ""
-                        }
-                        onClick={() => {
-                            setActiveTab("overview");
-                            setError("");
-                            setMessage("");
-                        }}
+                        className={activeTab === "overview" ? "active" : ""}
+                        onClick={() => changeTab("overview")}
                     >
                         📊 Overview
                     </button>
 
-
                     <button
-                        className={
-                            activeTab === "upload" ? "active" : ""
-                        }
-                        onClick={() => {
-                            setActiveTab("upload");
-                            setError("");
-                            setMessage("");
-                        }}
+                        className={activeTab === "upload" ? "active" : ""}
+                        onClick={() => changeTab("upload")}
                     >
                         ⬆️ Upload Document
                     </button>
 
-
                     <button
-                        className={
-                            activeTab === "documents" ? "active" : ""
-                        }
-                        onClick={() => {
-                            setActiveTab("documents");
-                            setError("");
-                            setMessage("");
-                        }}
+                        className={activeTab === "documents" ? "active" : ""}
+                        onClick={() => changeTab("documents")}
                     >
                         📁 My Documents
                     </button>
 
-
                     <button
-                        className={
-                            activeTab === "share" ? "active" : ""
-                        }
-                        onClick={() => {
-                            setActiveTab("share");
-                            setError("");
-                            setMessage("");
-                        }}
+                        className={activeTab === "share" ? "active" : ""}
+                        onClick={() => changeTab("share")}
                     >
                         🔗 Share Documents
                     </button>
 
-
                     <button
-                        className={
-                            activeTab === "permissions" ? "active" : ""
-                        }
-                        onClick={() => {
-                            setActiveTab("permissions");
-                            setError("");
-                            setMessage("");
-                        }}
+                        className={activeTab === "permissions" ? "active" : ""}
+                        onClick={() => changeTab("permissions")}
                     >
                         🔐 Manage Permissions
                     </button>
 
-
                     <button
-                        className={
-                            activeTab === "activity" ? "active" : ""
-                        }
-                        onClick={() => {
-                            setActiveTab("activity");
-                            setError("");
-                            setMessage("");
-                            loadOwnerActivity();
-                        }}
+                        className={activeTab === "activity" ? "active" : ""}
+                        onClick={() => changeTab("activity")}
                     >
                         📜 Activity History
                     </button>
-
                 </nav>
-
 
                 <button
                     className="owner-logout"
@@ -515,149 +383,79 @@ function OwnerDashboard() {
                 >
                     Logout
                 </button>
-
             </aside>
-
-
-            {/* ==========================================
-                MAIN CONTENT
-            ========================================== */}
-
-            <main className="owner-main">
-
-
-                {/* HEADER */}
+                        <main className="owner-main">
 
                 <header className="owner-header">
-
                     <div>
-
                         <h1>Owner Dashboard</h1>
-
-                        <p>
-                            Manage your documents securely
-                        </p>
-
+                        <p>Manage your documents securely</p>
                     </div>
 
-                    <span className="owner-role">
-                        OWNER
-                    </span>
-
+                    <span className="owner-role">OWNER</span>
                 </header>
 
-
-                {/* ERROR MESSAGE */}
-
                 {error && (
-
-                    <div className="dashboard-error">
-                        {error}
-                    </div>
-
+                    <div className="dashboard-error">{error}</div>
                 )}
-
-
-                {/* SUCCESS MESSAGE */}
 
                 {message && (
-
-                    <div className="dashboard-success">
-                        {message}
-                    </div>
-
+                    <div className="dashboard-success">{message}</div>
                 )}
-
-
-                {/* GENERAL LOADING */}
 
                 {loading && (
-
-                    <p className="loading-text">
-                        Loading...
-                    </p>
-
+                    <p className="loading-text">Loading...</p>
                 )}
 
-
-                {/* ======================================
-                    OVERVIEW
-                ====================================== */}
-
+                {/* Overview */}
                 {!loading && activeTab === "overview" && (
-
-                    <section>
-
+                    <section className="owner-section">
                         <h2>Overview</h2>
 
-                        <div className="owner-stat-card">
-
-                            <span>📁</span>
-
-                            <div>
-
-                                <p>Total Active Documents</p>
-
-                                <h2>{documents.length}</h2>
-
+                        <div className="owner-overview-grid">
+                            <div className="owner-stat-card">
+                                <span>📁</span>
+                                <div>
+                                    <p>Total Active Documents</p>
+                                    <h2>{documents.length}</h2>
+                                </div>
                             </div>
 
+                            <div className="owner-stat-card">
+                                <span>🔐</span>
+                                <div>
+                                    <p>Document Security</p>
+                                    <h3>Access Controlled</h3>
+                                </div>
+                            </div>
                         </div>
-
 
                         <div className="owner-welcome-card">
-
                             <h2>Welcome to TrustWorld!</h2>
-
                             <p>
-                                Upload your private documents,
-                                share them with selected Viewers,
-                                and control their access permissions.
+                                Upload your private documents, share them
+                                with selected Viewers, and control their
+                                access permissions.
                             </p>
-
                         </div>
-
-
-                        <div className="owner-stat-card">
-
-                            <span>🔐</span>
-
-                            <div>
-
-                                <p>Document Security</p>
-
-                                <h3>Access Controlled</h3>
-
-                            </div>
-
-                        </div>
-
                     </section>
-
                 )}
 
-
-                {/* ======================================
-                    UPLOAD DOCUMENT
-                ====================================== */}
-
+                {/* Upload Document */}
                 {!loading && activeTab === "upload" && (
-
-                    <section>
-
+                    <section className="owner-section">
                         <h2>Upload Document</h2>
 
                         <form
                             className="owner-form"
                             onSubmit={handleUpload}
                         >
-
-                            <label>
+                            <label htmlFor="owner-file">
                                 Select a document
                             </label>
 
-
                             <input
+                                id="owner-file"
                                 type="file"
                                 accept=".pdf,.doc,.docx,.txt,.xlsx,.csv"
                                 onChange={(e) =>
@@ -668,157 +466,93 @@ function OwnerDashboard() {
                                 required
                             />
 
-
                             {selectedFile && (
-
-                                <p>
+                                <p className="selected-file">
                                     Selected: {selectedFile.name}
                                 </p>
-
                             )}
 
-
-                            <button
-                                type="submit"
-                                disabled={loading}
-                            >
-
-                                {loading
-                                    ? "Uploading..."
-                                    : "Upload Document"
-                                }
-
+                            <button type="submit" disabled={loading}>
+                                {loading ? "Uploading..." : "Upload Document"}
                             </button>
-
                         </form>
-
                     </section>
-
                 )}
 
-
-                {/* ======================================
-                    MY DOCUMENTS
-                ====================================== */}
-
+                {/* My Documents */}
                 {!loading && activeTab === "documents" && (
-
-                    <section>
-
+                    <section className="owner-section">
                         <h2>My Documents</h2>
 
-
                         <div className="owner-table-container">
-
                             <table>
-
                                 <thead>
-
                                     <tr>
-
                                         <th>ID</th>
                                         <th>Document Name</th>
                                         <th>Created At</th>
                                         <th>Actions</th>
-
                                     </tr>
-
                                 </thead>
 
-
                                 <tbody>
-
                                     {documents.map((doc) => (
-
                                         <tr key={doc.document_id}>
-
+                                            <td>{doc.document_id}</td>
+                                            <td>{doc.document_name}</td>
                                             <td>
-                                                {doc.document_id}
-                                            </td>
-
-
-                                            <td>
-                                                {doc.document_name}
-                                            </td>
-
-
-                                            <td>
-
                                                 {doc.created_at
                                                     ? new Date(
                                                         doc.created_at
                                                     ).toLocaleDateString()
-                                                    : "-"
-                                                }
-
+                                                    : "-"}
                                             </td>
-
-
                                             <td>
+                                                <div className="owner-action-buttons">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setSelectedDocument(doc);
+                                                            setNewDocumentName(
+                                                                doc.document_name
+                                                            );
+                                                            setError("");
+                                                            setMessage("");
+                                                        }}
+                                                    >
+                                                        Rename
+                                                    </button>
 
-                                                <button
-                                                    onClick={() => {
-
-                                                        setSelectedDocument(doc);
-
-                                                        setNewDocumentName(
-                                                            doc.document_name
-                                                        );
-
-                                                        setError("");
-                                                        setMessage("");
-
-                                                    }}
-                                                >
-                                                    Rename
-                                                </button>
-
-
-                                                <button
-                                                    className="archive-button"
-                                                    onClick={() =>
-                                                        handleArchive(
-                                                            doc.document_id
-                                                        )
-                                                    }
-                                                >
-                                                    Archive
-                                                </button>
-
+                                                    <button
+                                                        type="button"
+                                                        className="archive-button"
+                                                        onClick={() =>
+                                                            handleArchive(
+                                                                doc.document_id
+                                                            )
+                                                        }
+                                                    >
+                                                        Archive
+                                                    </button>
+                                                </div>
                                             </td>
-
                                         </tr>
-
                                     ))}
 
-
                                     {documents.length === 0 && (
-
                                         <tr>
-
                                             <td colSpan="4">
                                                 No documents uploaded yet.
                                             </td>
-
                                         </tr>
-
                                     )}
-
                                 </tbody>
-
                             </table>
-
                         </div>
 
-
-                        {/* RENAME FORM */}
-
                         {selectedDocument && (
-
-                            <div className="owner-form">
-
+                            <div className="owner-form rename-form">
                                 <h3>Rename Document</h3>
-
 
                                 <input
                                     type="text"
@@ -829,103 +563,79 @@ function OwnerDashboard() {
                                     placeholder="Enter new document name"
                                 />
 
+                                <div className="owner-action-buttons">
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            handleRename(
+                                                selectedDocument.document_id
+                                            )
+                                        }
+                                    >
+                                        Save New Name
+                                    </button>
 
-                                <button
-                                    onClick={() =>
-                                        handleRename(
-                                            selectedDocument.document_id
-                                        )
-                                    }
-                                >
-                                    Save New Name
-                                </button>
-
-
-                                <button
-                                    className="cancel-button"
-                                    onClick={() => {
-
-                                        setSelectedDocument(null);
-                                        setNewDocumentName("");
-
-                                    }}
-                                >
-                                    Cancel
-                                </button>
-
+                                    <button
+                                        type="button"
+                                        className="cancel-button"
+                                        onClick={() => {
+                                            setSelectedDocument(null);
+                                            setNewDocumentName("");
+                                        }}
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
                             </div>
-
                         )}
-
                     </section>
-
                 )}
 
-
-                {/* ======================================
-                    SHARE DOCUMENT
-                ====================================== */}
-
+                {/* Share Document */}
                 {!loading && activeTab === "share" && (
-
-                    <section>
-
+                    <section className="owner-section">
                         <h2>Share Document</h2>
-
 
                         <form
                             className="owner-form"
                             onSubmit={handleShare}
                         >
-
-                            <label>
+                            <label htmlFor="share-document">
                                 Select Document
                             </label>
 
-
                             <select
-                                value={
-                                    selectedDocument?.document_id || ""
-                                }
+                                id="share-document"
+                                value={selectedDocument?.document_id || ""}
                                 onChange={(e) => {
-
                                     const doc = documents.find(
-                                        item =>
-                                            item.document_id ===
-                                            Number(e.target.value)
+                                        (item) =>
+                                            String(item.document_id) ===
+                                            e.target.value
                                     );
 
                                     setSelectedDocument(doc || null);
-
                                 }}
                                 required
                             >
-
-                                <option value="">
-                                    Select a document
-                                </option>
-
+                                <option value="">Select a document</option>
 
                                 {documents.map((doc) => (
-
                                     <option
                                         key={doc.document_id}
                                         value={doc.document_id}
                                     >
                                         {doc.document_name}
                                     </option>
-
                                 ))}
-
                             </select>
 
-
-                            <label>
+                            <label htmlFor="viewer-email">
                                 Viewer Email
                             </label>
 
-
                             <input
+                                id="viewer-email"
                                 type="email"
                                 placeholder="viewer@example.com"
                                 value={viewerEmail}
@@ -935,9 +645,7 @@ function OwnerDashboard() {
                                 required
                             />
 
-
                             <label className="owner-checkbox">
-
                                 <input
                                     type="checkbox"
                                     checked={canView}
@@ -945,14 +653,10 @@ function OwnerDashboard() {
                                         setCanView(e.target.checked)
                                     }
                                 />
-
                                 Allow viewing
-
                             </label>
 
-
                             <label className="owner-checkbox">
-
                                 <input
                                     type="checkbox"
                                     checked={canDownload}
@@ -960,18 +664,15 @@ function OwnerDashboard() {
                                         setCanDownload(e.target.checked)
                                     }
                                 />
-
                                 Allow downloading
-
                             </label>
 
-
-                            <label>
+                            <label htmlFor="permission-expiry">
                                 Permission Expiry (Optional)
                             </label>
 
-
                             <input
+                                id="permission-expiry"
                                 type="datetime-local"
                                 value={expiresAt}
                                 onChange={(e) =>
@@ -979,26 +680,16 @@ function OwnerDashboard() {
                                 }
                             />
 
-
                             <button type="submit">
                                 Share Document
                             </button>
-
                         </form>
-
                     </section>
-
                 )}
 
-
-                {/* ======================================
-                    MANAGE PERMISSIONS
-                ====================================== */}
-
+                {/* Manage Permissions */}
                 {!loading && activeTab === "permissions" && (
-
-                    <section>
-
+                    <section className="owner-section">
                         <h2>Manage Document Permissions</h2>
 
                         <p>
@@ -1006,70 +697,48 @@ function OwnerDashboard() {
                             documents and revoke their permissions.
                         </p>
 
-
                         <div className="owner-form">
-
-                            <label>
+                            <label htmlFor="permission-document">
                                 Select Document
                             </label>
 
-
                             <select
+                                id="permission-document"
                                 value={permissionDocumentId}
                                 onChange={(e) => {
-
                                     const documentId = e.target.value;
 
                                     setPermissionDocumentId(documentId);
-
                                     setError("");
                                     setMessage("");
 
                                     loadPermissions(documentId);
-
                                 }}
                             >
-
-                                <option value="">
-                                    Select a document
-                                </option>
-
+                                <option value="">Select a document</option>
 
                                 {documents.map((doc) => (
-
                                     <option
                                         key={doc.document_id}
                                         value={doc.document_id}
                                     >
                                         {doc.document_name}
                                     </option>
-
                                 ))}
-
                             </select>
-
                         </div>
 
-
                         {permissionsLoading && (
-
                             <p className="loading-text">
                                 Loading permissions...
                             </p>
-
                         )}
 
-
                         {!permissionsLoading && permissionDocumentId && (
-
                             <div className="owner-table-container">
-
                                 <table>
-
                                     <thead>
-
                                         <tr>
-
                                             <th>Viewer</th>
                                             <th>Email</th>
                                             <th>Can View</th>
@@ -1078,82 +747,61 @@ function OwnerDashboard() {
                                             <th>Expiry</th>
                                             <th>Status</th>
                                             <th>Action</th>
-
                                         </tr>
-
                                     </thead>
 
-
                                     <tbody>
-
                                         {permissions.map((permission) => {
-
                                             const isExpired =
                                                 permission.expires_at &&
-                                                new Date(
-                                                    permission.expires_at
-                                                ) < new Date();
+                                                new Date(permission.expires_at) <
+                                                    new Date();
 
-                                            const status =
-                                                permission.revoked_at
-                                                    ? "Revoked"
-                                                    : isExpired
-                                                        ? "Expired"
-                                                        : "Active";
-
+                                            const status = permission.revoked_at
+                                                ? "Revoked"
+                                                : isExpired
+                                                    ? "Expired"
+                                                    : "Active";
 
                                             return (
-
                                                 <tr key={permission.permission_id}>
-
                                                     <td>
                                                         {permission.viewer_name || "-"}
                                                     </td>
-
 
                                                     <td>
                                                         {permission.viewer_email || "-"}
                                                     </td>
 
-
                                                     <td>
                                                         {permission.can_view
                                                             ? "Yes"
-                                                            : "No"
-                                                        }
+                                                            : "No"}
                                                     </td>
-
 
                                                     <td>
                                                         {permission.can_download
                                                             ? "Yes"
-                                                            : "No"
-                                                        }
+                                                            : "No"}
                                                     </td>
-
 
                                                     <td>
                                                         {permission.granted_at
                                                             ? new Date(
                                                                 permission.granted_at
                                                             ).toLocaleDateString()
-                                                            : "-"
-                                                        }
+                                                            : "-"}
                                                     </td>
-
 
                                                     <td>
                                                         {permission.expires_at
                                                             ? new Date(
                                                                 permission.expires_at
                                                             ).toLocaleString()
-                                                            : "No expiry"
-                                                        }
+                                                            : "No expiry"}
                                                     </td>
 
-
                                                     <td>
-
                                                         <span
                                                             className={
                                                                 status === "Active"
@@ -1163,15 +811,12 @@ function OwnerDashboard() {
                                                         >
                                                             {status}
                                                         </span>
-
                                                     </td>
 
-
                                                     <td>
-
                                                         {status === "Active" ? (
-
                                                             <button
+                                                                type="button"
                                                                 className="archive-button"
                                                                 onClick={() =>
                                                                     handleRevoke(
@@ -1181,64 +826,36 @@ function OwnerDashboard() {
                                                             >
                                                                 Revoke
                                                             </button>
-
                                                         ) : (
-
                                                             "-"
-
                                                         )}
-
                                                     </td>
-
                                                 </tr>
-
                                             );
-
                                         })}
 
-
                                         {permissions.length === 0 && (
-
                                             <tr>
-
                                                 <td colSpan="8">
                                                     No permissions found for this document.
                                                 </td>
-
                                             </tr>
-
                                         )}
-
                                     </tbody>
-
                                 </table>
-
                             </div>
-
                         )}
 
-
                         {!permissionDocumentId && (
-
                             <p>
                                 Select a document to view its permissions.
                             </p>
-
                         )}
-
                     </section>
-
                 )}
-
-
-                {/* ======================================
-                    OWNER ACTIVITY HISTORY
-                ====================================== */}
-
+                                {/* Activity History */}
                 {!loading && activeTab === "activity" && (
-
-                    <section>
-
+                    <section className="owner-section">
                         <h2>Document Activity History</h2>
 
                         <p>
@@ -1246,78 +863,52 @@ function OwnerDashboard() {
                             whether their access was allowed or denied.
                         </p>
 
-
                         <button
+                            type="button"
                             onClick={loadOwnerActivity}
                             disabled={activityLoading}
                         >
                             {activityLoading
                                 ? "Refreshing..."
-                                : "Refresh Activity"
-                            }
+                                : "Refresh Activity"}
                         </button>
 
-
                         {activityLoading && (
-
                             <p className="loading-text">
                                 Loading activity history...
                             </p>
-
                         )}
 
-
                         {!activityLoading && (
-
                             <div className="owner-table-container">
-
                                 <table>
-
                                     <thead>
-
                                         <tr>
-
                                             <th>Document</th>
                                             <th>User</th>
                                             <th>Action</th>
                                             <th>Result</th>
                                             <th>Reason</th>
                                             <th>Date and Time</th>
-
                                         </tr>
-
                                     </thead>
 
-
                                     <tbody>
-
                                         {activities.map((activity) => (
-
                                             <tr key={activity.log_id}>
-
                                                 <td>
                                                     {activity.document_name || "-"}
                                                 </td>
 
-
                                                 <td>
-
                                                     {activity.user_name || "Unknown"}
-
                                                     <br />
-
                                                     {activity.user_email || "-"}
-
                                                 </td>
 
+                                                <td>{activity.action}</td>
 
                                                 <td>
-                                                    {activity.action}
-                                                </td>
-
-
-                                                <td>
-
                                                     <span
                                                         className={
                                                             activity.result === "ALLOWED"
@@ -1327,61 +918,39 @@ function OwnerDashboard() {
                                                     >
                                                         {activity.result}
                                                     </span>
-
                                                 </td>
-
 
                                                 <td>
                                                     {activity.reason || "-"}
                                                 </td>
 
-
                                                 <td>
-
                                                     {activity.timestamp
                                                         ? new Date(
                                                             activity.timestamp
                                                         ).toLocaleString()
-                                                        : "-"
-                                                    }
-
+                                                        : "-"}
                                                 </td>
-
                                             </tr>
-
                                         ))}
 
-
                                         {activities.length === 0 && (
-
                                             <tr>
-
                                                 <td colSpan="6">
                                                     No document activity found.
                                                 </td>
-
                                             </tr>
-
                                         )}
-
                                     </tbody>
-
                                 </table>
-
                             </div>
-
                         )}
-
                     </section>
-
                 )}
 
             </main>
-
         </div>
-
     );
 }
-
 
 export default OwnerDashboard;
