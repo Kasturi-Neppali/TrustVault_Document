@@ -264,7 +264,7 @@ function AdminDashboard() {
                 <header className="admin-header">
                     <div>
                         <h1>Admin Dashboard</h1>
-                        <p>Manage and monitor TrustWorld</p>
+                        <p>Manage and monitor TrustVault</p>
                     </div>
 
                     <span className="admin-role">ADMIN</span>
