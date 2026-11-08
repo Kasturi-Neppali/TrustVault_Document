@@ -1,458 +1,468 @@
-# TrustVault -- Project Documentation
+# TrustVault – Project Documentation
 
-## 1. Title
+## 1. Project Overview
 
-**TrustVault: Secure Role-Based Document Management and Sharing
-Platform**
+### Project Name
+**TrustVault – Secure Role-Based Document Management System**
 
-## 2. Abstract
+### Project Description
 
-TrustVault is a full-stack document management application designed to
-provide controlled document storage and sharing. It separates users into
-Admin, Owner, and Viewer roles. Owners can upload and manage their own
-documents and share them with selected Viewers. Sharing permissions
-control whether a Viewer may view or download a document and can include
-an expiry date or be revoked. Viewers can access only documents for
-which they hold valid permissions. Administrators manage user accounts
-and inspect document metadata and security events without automatically
-receiving access to private document contents.
+TrustVault is a secure document management platform that enables users to upload, manage, share and access documents based on assigned roles and permissions.
 
-The application uses React with Vite for the frontend, Python Flask for
-backend APIs, and MySQL for persistent data. Passwords are hashed with
-bcrypt and protected APIs use JWT authentication and role-based
-authorization. Document access events are recorded in audit logs, with
-SHA-256 hash chaining used to make changes to records detectable during
-verification.
+The system provides three different roles: Admin, Owner and Viewer.
 
-## 3. Problem statement
+Owners can upload and manage their documents and share them with registered Viewers. They can control whether a Viewer is allowed to view or download a document and can define permission expiry dates.
 
-Uncontrolled document sharing can expose sensitive information to users
-who should not have access. A document owner may need to share a file
-with a specific person, allow viewing but not downloading, limit access
-to a period, or revoke access later. A system also needs a way to review
-who attempted to access a document and whether access was allowed.
+Viewers can access only documents shared with them and only perform actions permitted by the Owner.
 
-TrustVault addresses these requirements through role separation,
-per-document permissions, backend access checks, and audit logging.
+Admins manage user accounts, roles and account statuses and can monitor document metadata and security activities.
 
-## 4. Objectives
+The application is designed to improve document confidentiality, access control, accountability and secure document sharing.
 
--   Provide secure registration and login.
--   Implement three distinct roles: Admin, Owner, and Viewer.
--   Allow Owners to manage only their own documents.
--   Allow controlled sharing with registered Viewers.
--   Separate viewing permission from downloading permission.
--   Support permission expiry and revocation.
--   Prevent unauthorized access at the backend.
--   Record document access events.
--   Verify audit record integrity using a SHA-256 hash chain.
--   Provide a clear web interface for each role.
+## 2. Problem Statement
 
-## 5. Proposed system
+Traditional document-sharing methods can make it difficult to control who accesses confidential documents, what actions they can perform and how long their access should remain active.
 
-TrustWorld uses a React frontend to present role-specific dashboards.
-The frontend sends requests to Flask APIs through Axios. Flask
-authenticates requests using JWT and applies RBAC middleware. The
-backend interacts with MySQL for user, document, permission, and audit
-metadata. Uploaded documents are stored in a private server-side
-directory and are delivered only through authorized backend routes.
+Sharing documents without proper authorization controls may result in unauthorized viewing, downloading or distribution.
 
-## 6. User roles and responsibilities
+TrustVault addresses these challenges through role-based access control, document-level permissions, private storage and audit logging.
 
-### 6.1 Admin
+## 3. Project Objectives
 
--   View dashboard statistics.
--   Search and manage user accounts.
--   Assign permitted Owner/Viewer roles.
--   Activate, deactivate, or suspend accounts.
--   View document metadata.
--   Inspect login and document security logs.
--   Verify audit-chain integrity.
+The main objectives are:
 
-Admin access to metadata does not automatically grant access to private
-document contents.
+1. Provide secure user authentication.
+2. Implement role-based access control.
+3. Allow Owners to upload and manage documents.
+4. Allow Owners to share documents with registered Viewers.
+5. Provide separate viewing and downloading permissions.
+6. Support permission expiry and revocation.
+7. Prevent unauthorized access to documents.
+8. Maintain audit records of important activities.
+9. Allow Admins to manage users and monitor security activities.
+10. Provide a responsive and user-friendly interface.
 
-### 6.2 Owner
+## 4. User Roles and Responsibilities
 
--   Upload documents.
--   List own documents.
--   Rename and archive own documents.
--   Share documents with registered Viewers.
--   Set `can_view` and `can_download`.
--   Set optional expiry timestamps.
--   Revoke permissions.
--   View permissions and activity associated with own documents.
+### 4.1 Admin
 
-### 6.3 Viewer
+The Admin is responsible for managing the application users and monitoring system activities.
 
--   List documents currently shared with them.
--   View a document when a valid view permission exists.
--   Download only when download permission is also granted.
--   Be denied access after permission expiry or revocation.
--   View their own activity history.
+Responsibilities:
 
-## 7. Technology stack
+- View registered users.
+- Manage user roles.
+- Activate, deactivate or suspend accounts.
+- View document metadata.
+- Inspect security and audit logs.
+- Verify audit-chain integrity.
 
-  -----------------------------------------------------------------------
-  Component               Technology              Purpose
-  ----------------------- ----------------------- -----------------------
-  Frontend                React.js                User interface
+Admin access to user management does not automatically grant access to private document contents.
 
-  Frontend tooling        Vite                    Development server and
-                                                  build tooling
+### 4.2 Owner
 
-  Styling                 CSS                     Dashboard and form
-                                                  styling
+The Owner manages their own documents and controls document sharing.
 
-  API communication       Axios                   HTTP requests
+Responsibilities:
 
-  Backend                 Python Flask            REST API endpoints
+- Upload documents.
+- View uploaded documents.
+- Rename documents.
+- Archive documents.
+- Share documents with registered Viewers.
+- Enable or disable viewing permissions.
+- Enable or disable downloading permissions.
+- Configure permission expiry dates.
+- Revoke previously granted permissions.
+- View document activity.
 
-  Database                MySQL                   Persistent application
-                                                  data
+### 4.3 Viewer
 
-  Password security       bcrypt                  Password hashing
+The Viewer accesses documents shared by Owners.
 
-  Authentication          JWT /                   Token-based
-                          Flask-JWT-Extended      authentication
+Responsibilities:
 
-  Authorization           RBAC middleware         Role and account checks
+- View documents shared with them.
+- Download documents when downloading permission is enabled.
+- View their own document activity.
+- Access only documents for which valid permissions exist.
 
-  Audit integrity         SHA-256                 Hash-chain verification
+## 5. Functional Modules
 
-  Configuration           python-dotenv           Load environment
-                                                  variables
+| Module | Description |
+|---|---|
+| Authentication | Handles user registration and login. |
+| Role Management | Controls access based on Admin, Owner and Viewer roles. |
+| Admin Management | Manages users and account statuses. |
+| Document Management | Supports document upload, listing, renaming and archiving. |
+| Document Sharing | Allows Owners to share documents with Viewers. |
+| Permission Management | Controls viewing, downloading, expiry and revocation. |
+| Viewer Access | Provides access to documents according to assigned permissions. |
+| Audit Logging | Records important application activities. |
+| Audit Verification | Verifies the integrity of hash-chained audit records. |
+| Security Monitoring | Provides visibility into security-related activity. |
 
-  CORS                    Flask-CORS              Permit configured
-                                                  frontend origin
-  -----------------------------------------------------------------------
+## 6. Technology Stack
 
-## 8. System architecture
+### Frontend
 
-``` text
-+-----------------------------+
-|        User Browser         |
-|  Admin / Owner / Viewer     |
-+--------------+--------------+
-               |
-               v
-+-----------------------------+
-|       React + Vite          |
-| Pages / Components / Axios  |
-+--------------+--------------+
-               |
-          HTTP + JWT
-               |
-               v
-+-----------------------------+
-|          Flask API          |
-| Auth / Admin / Owner /      |
-| Viewer / Role routes        |
-+--------------+--------------+
-               |
-       +-------+--------+
-       |                |
-       v                v
-+--------------+  +----------------+
-| RBAC         |  | Application    |
-| Middleware   |  | Services       |
-+--------------+  | File / Audit   |
-                  +-------+--------+
-                          |
-                 +--------+--------+
-                 |                 |
-                 v                 v
-          +-------------+  +------------------+
-          | MySQL       |  | Private Storage  |
-          | Metadata,   |  | Uploaded files   |
-          | Permissions,|  +------------------+
-          | Audit       |
-          +-------------+
+- React – Component-based user interface.
+- Vite – Frontend development and build tool.
+- HTML5 – Application structure.
+- CSS3 – Styling and responsive design.
+- JavaScript – Frontend functionality.
+- Axios – HTTP communication with backend APIs.
+- React Router – Frontend navigation and protected routes.
+
+### Backend
+
+- Python – Backend programming language.
+- Flask – REST API development.
+- JWT – Authentication and token validation.
+- bcrypt – Password hashing.
+- Psycopg – PostgreSQL connectivity.
+
+### Database and Storage
+
+- PostgreSQL – Relational database.
+- Neon – Hosted PostgreSQL database.
+- Supabase Storage – Private document storage.
+
+### Development and Deployment
+
+- Visual Studio Code – Development environment.
+- Git – Version control.
+- GitHub – Source code repository.
+- Vercel – Frontend hosting.
+- Render – Backend hosting.
+
+## 7. System Architecture
+
+TrustVault follows a frontend-backend architecture.
+
+The React frontend communicates with Flask REST APIs. The backend validates authentication and permissions before performing database or document-storage operations.
+
+The PostgreSQL database stores users, roles, document metadata, permissions and audit records.
+
+Supabase Storage stores document files in a private bucket.
+
+### Architecture Flow
+
+```text
+                 USERS
+                   |
+          +--------+--------+
+          |        |        |
+        Admin    Owner    Viewer
+          |        |        |
+          +--------+--------+
+                   |
+            React + Vite
+              Frontend
+                   |
+               Axios API
+                   |
+             Flask Backend
+                   |
+          JWT Authentication
+                   |
+          Role-Based Access
+                   |
+       +-----------+-----------+
+       |                       |
+  Neon PostgreSQL       Supabase Storage
+       |                       |
+  Users and Roles         Private Files
+  Documents               Document Objects
+  Permissions
+  Audit Logs
+  Login Attempts
 ```
 
-## 9. Database design overview
+## 8. Database Design
 
-The project database is named `trustvault_db`.
+TrustVault uses PostgreSQL to maintain application data.
 
-  -----------------------------------------------------------------------
-  Table                               Main responsibility
-  ----------------------------------- -----------------------------------
-  `roles`                             Defines ADMIN, OWNER, VIEWER role
-                                      records.
+### 8.1 Roles Table
 
-  `users`                             Stores identity, email, bcrypt
-                                      password hash, role reference, and
-                                      status.
+Stores the available application roles.
 
-  `documents`                         Stores Owner reference, original
-                                      document name, storage filename,
-                                      file hash, timestamps, and archive
-                                      fields.
+Important fields:
 
-  `document_permissions`              Stores document-to-Viewer access
-                                      rules, view/download flags,
-                                      grant/expiry/revocation dates.
+- `role_id`
+- `role_name`
 
-  `audit_logs`                        Stores document activity, result,
-                                      reason, timestamp, and hash-chain
-                                      fields.
+Roles include ADMIN, OWNER and VIEWER.
 
-  `login_attempts`                    Stores login success/failure
-                                      records and IP address where
-                                      configured.
-  -----------------------------------------------------------------------
+### 8.2 Users Table
 
-### Main relationships
+Stores user account information.
 
--   One role can be assigned to many users.
--   One Owner can own many documents.
--   One document can have permission records for multiple Viewers.
--   One Viewer can receive access to multiple documents.
--   One document can have multiple audit events.
--   One user can have multiple login-attempt records.
+Important fields:
 
-Use the actual SQL schema in the project as the final authority for
-exact column definitions and constraints.
+- `user_id`
+- `name`
+- `email`
+- `password_hash`
+- `role_id`
+- `status`
+- `created_at`
 
-## 10. Module descriptions
+The password is stored as a hash rather than plain text.
 
-### 10.1 Authentication module
+### 8.3 Documents Table
 
-Provides registration and login. Passwords are hashed using bcrypt.
-Login checks account status and returns a JWT access token for an active
-user.
+Stores document metadata.
 
-### 10.2 Authorization module
+Important fields:
 
-The RBAC middleware checks the token, retrieves the current user and
-role, verifies account status, and restricts protected APIs to permitted
-roles.
+- `document_id`
+- `owner_id`
+- `document_name`
+- `storage_path`
+- `file_hash`
+- `created_at`
+- `updated_at`
+- `is_deleted`
+- `deleted_at`
 
-### 10.3 Admin module
+Document file contents are stored in Supabase Storage rather than directly in the database.
 
-Provides user management, dashboard statistics, document metadata,
-security logs, and audit verification.
+### 8.4 Document Permissions Table
 
-### 10.4 Owner module
+Stores document-sharing permissions.
 
-Provides private document upload and management, sharing, permission
-administration, and Owner-scoped activity history.
+Important fields:
 
-### 10.5 Viewer module
+- `permission_id`
+- `document_id`
+- `viewer_id`
+- `can_view`
+- `can_download`
+- `granted_at`
+- `expires_at`
+- `revoked_at`
 
-Lists documents shared with the authenticated Viewer and provides
-backend-protected view/download routes. It also provides the Viewer's
-activity history.
+This table controls which Viewer can access a document and what actions are permitted.
 
-### 10.6 File service
+### 8.5 Audit Logs Table
 
-Validates allowed filename extensions, sanitizes filenames, generates
-unique stored filenames, saves files in private storage, and calculates
-SHA-256 file hashes. Extension validation alone is not sufficient to
-establish file content safety.
+Stores important security and application activities.
 
-### 10.7 Audit service
+Important fields:
 
-Records allowed and denied access events. Each hash-chained event refers
-to the preceding record's hash. The verification service recalculates
-the chain and reports whether the stored records match the expected
-hashes.
+- `log_id`
+- `user_id`
+- `document_id`
+- `action`
+- `result`
+- `reason`
+- `ip_address`
+- `timestamp`
+- `previous_hash`
+- `current_hash`
 
-## 11. Main workflows
+The hash-chain structure supports detection of modifications to recorded audit entries.
 
-### 11.1 Registration and login
+### 8.6 Login Attempts Table
 
-1.  User submits registration details.
-2.  Backend validates input.
-3.  Public registration accepts Owner or Viewer roles only.
-4.  Password is hashed using bcrypt.
-5.  User record is stored in MySQL.
-6.  During login, backend verifies the password and account status.
-7.  An active user receives a JWT access token.
+Stores login attempt information.
 
-### 11.2 Owner uploads a document
+Important fields:
 
-1.  Owner selects a supported file.
-2.  React sends it to the Flask upload endpoint.
-3.  Backend checks the Owner identity and upload constraints.
-4.  File receives a unique stored filename.
-5.  File is saved in private storage.
-6.  File hash and document metadata are stored in MySQL.
+- `attempt_id`
+- `user_id`
+- `email`
+- `status`
+- `ip_address`
+- `attempted_at`
 
-### 11.3 Owner shares a document
+This information supports monitoring of successful and unsuccessful login activity.
 
-1.  Owner selects one of their documents.
-2.  Owner supplies a registered Viewer's email.
-3.  Owner selects viewing and downloading permissions.
-4.  Owner may set an expiry timestamp.
-5.  Backend verifies ownership and Viewer eligibility.
-6.  Permission is stored in MySQL.
+## 9. Security Design
 
-### 11.4 Viewer accesses a document
+Security is a major consideration in TrustVault.
 
-1.  Viewer requests their shared document list.
-2.  Backend filters for active, non-revoked, non-expired permissions.
-3.  Viewer requests a view or download.
-4.  Backend rechecks permission for that specific action.
-5.  Access is allowed or denied.
-6.  An audit event is recorded by the relevant route.
+### 9.1 Authentication
 
-### 11.5 Audit verification
+- Users authenticate through the login system.
+- Passwords are stored using password hashing.
+- JWT tokens are used to authenticate protected API requests.
+- Token validation is performed by the backend.
 
-1.  Admin requests audit verification.
-2.  Backend reads audit records in chain order.
-3.  Verification recalculates each event hash.
-4.  Each previous hash is compared with the preceding record's current
-    hash.
-5.  The API reports whether the chain verifies.
+### 9.2 Role-Based Access Control
 
-## 12. Security features
+Access to protected functionality is determined by the authenticated user's role.
 
--   bcrypt password hashing.
--   JWT-based authentication.
--   Role-based backend authorization.
--   Owner-scoped document operations.
--   Viewer-specific document permissions.
--   Separate view and download permissions.
--   Permission expiry and revocation.
--   Private file storage.
--   Sanitized filenames and path containment checks.
--   Login attempt recording.
--   Allowed/denied document access audit events.
--   SHA-256 audit hash chaining.
+- Admin APIs are restricted to Admin users.
+- Owner APIs are restricted to authorized Owners.
+- Viewer APIs are restricted to Viewers.
 
-A hash chain is tamper-evident, not tamper-proof. Production deployment
-should protect audit storage, restrict database privileges, and store
-signed checkpoints independently.
+### 9.3 Document-Level Authorization
 
-## 13. Testing plan
+Role verification alone is not sufficient for document access.
 
-Use separate test accounts and non-sensitive files.
+The backend must also verify document ownership or an active sharing permission before allowing document operations.
 
-  -----------------------------------------------------------------------
-  Test case                           Expected behavior
-  ----------------------------------- -----------------------------------
-  Public registration as Owner        Accepted if input is valid
+### 9.4 Permission-Based Sharing
 
-  Public registration as Viewer       Accepted if input is valid
+Owners can control:
 
-  Public registration as Admin        Rejected
+- Whether a Viewer can view a document.
+- Whether a Viewer can download a document.
+- When the permission expires.
+- Whether the permission is revoked.
 
-  Login with incorrect password       Rejected
+### 9.5 Private Document Storage
 
-  Login with inactive account         Rejected
+Documents are stored in a private Supabase Storage bucket.
 
-  Owner uploads a supported file      Accepted
+Access to document contents is controlled through backend authorization and the configured storage access mechanism.
 
-  Owner attempts to rename another    Rejected
-  Owner's file                        
+### 9.6 Audit Logging
 
-  Owner shares own document with a    Accepted if Viewer is eligible
-  Viewer                              
+Important activities are recorded in the audit logs.
 
-  Viewer opens active shared document Allowed if `can_view` is true
+The audit structure uses SHA-256 hash chaining to support integrity verification.
 
-  Viewer downloads with download      Allowed
-  permission                          
+### 9.7 Environment Configuration
 
-  Viewer downloads without download   Rejected
-  permission                          
+Sensitive credentials are configured using environment variables rather than being hardcoded into application source files.
 
-  Viewer accesses expired permission  Rejected
+The repository uses an example environment file containing placeholder values.
 
-  Viewer accesses revoked permission  Rejected
+## 10. Document Management Workflow
 
-  Viewer attempts upload              Rejected
+### Owner Workflow
 
-  Admin accesses document metadata    Allowed
+1. Owner logs in.
+2. Owner opens the dashboard.
+3. Owner uploads a document.
+4. Backend validates the upload.
+5. The file is stored in private storage.
+6. Document metadata is saved in PostgreSQL.
+7. Owner shares the document with a registered Viewer.
+8. Owner selects viewing and downloading permissions.
+9. Owner optionally sets an expiry date.
+10. Owner can later revoke the permission.
 
-  Admin attempts Viewer-only file API Rejected by role middleware
+### Viewer Workflow
 
-  Admin verifies audit chain          Returns verification result
-  -----------------------------------------------------------------------
+1. Viewer logs in.
+2. Viewer opens the dashboard.
+3. Backend retrieves documents shared with the Viewer.
+4. Viewer selects an available document.
+5. Backend checks the active permission.
+6. Viewing or downloading is allowed only when the corresponding permission is valid.
 
+### Admin Workflow
 
-## 14. Installation and execution
+1. Admin logs in.
+2. Admin opens the dashboard.
+3. Admin views registered users.
+4. Admin manages roles and account statuses.
+5. Admin inspects document metadata and security activities.
+6. Admin can verify audit-chain integrity.
 
-### Prerequisites
+## 11. Deployment Architecture
 
--   Python.
--   Node.js and npm.
--   MySQL Server.
--   VS Code (recommended).
+TrustVault is deployed using cloud hosting services.
 
-### Backend setup (Windows PowerShell)
+| Component | Platform |
+|---|---|
+| Frontend | Vercel |
+| Backend | Render |
+| Database | Neon PostgreSQL |
+| Document Storage | Supabase Storage |
+| Source Code | GitHub |
 
-``` powershell
-cd backend
-py -m venv .venv
-.\.venv\Scripts\Activate.ps1
-py -m pip install -r requirements.txt
-```
+### Deployment Flow
 
-Configure `backend/.env` using the variable names expected by the
-project's `db.py` and `app.py`. Typical variables include:
+1. Source code is maintained in GitHub.
+2. The React frontend is built and deployed through Vercel.
+3. The Flask backend is deployed through Render.
+4. Render connects to the Neon PostgreSQL database.
+5. The backend connects to the private Supabase Storage bucket.
+6. The frontend communicates with the deployed backend using its configured API base URL.
 
-``` env
-DB_HOST=localhost
-DB_USER=trustworld_user
-DB_PASSWORD=YOUR_DATABASE_PASSWORD
-DB_NAME=trustworld_db
-JWT_SECRET_KEY=YOUR_LONG_RANDOM_SECRET
-```
+Production credentials are configured through deployment environment variables and must not be committed to the repository.
 
-Create the database and tables using the SQL schema already prepared for
-the project.
+## 12. Error Handling and Validation
 
-Start the backend:
+The application should validate user inputs and handle errors appropriately.
 
-``` powershell
-py app.py
-```
+Examples include:
 
-### Frontend setup
+- Invalid login credentials.
+- Missing authentication tokens.
+- Unauthorized API requests.
+- Invalid document permissions.
+- Expired or revoked permissions.
+- Invalid file uploads.
+- Database connection failures.
+- Storage operation failures.
 
-Open another terminal:
+The backend should return appropriate HTTP status codes and avoid exposing sensitive internal information in error responses.
 
-``` powershell
-cd frontend
-npm install
-npm run dev
-```
+## 13. Testing Strategy
 
-Open the local URL displayed by Vite, commonly `http://localhost:5173`.
+Testing should cover both normal application workflows and unauthorized access attempts.
 
-### Run both applications
+### Functional Testing
 
--   MySQL must be running.
--   Flask must be running.
--   Vite must be running.
--   Frontend API configuration must point to the Flask backend.
+- User registration and login.
+- Role-specific dashboard access.
+- Document upload and listing.
+- Document rename and archive.
+- Document sharing.
+- Permission updates.
+- Permission revocation.
+- Document viewing and downloading.
+- Admin user management.
+- Logout and navigation.
 
-## 15. Limitations and future enhancements
+### Security Testing
 
-Potential future improvements: - Multi-factor authentication. - Email
-notifications for sharing and access events. - File-signature validation
-and malware scanning. - Login rate limiting and suspicious-login
-alerts. - Document version history. - Cloud object storage and
-encryption at rest. - Automated unit and integration tests. - Production
-deployment with HTTPS and a WSGI server. - External signed audit
-checkpoints. - Secure session/token handling and XSS/CSRF review.
+- Access protected APIs without authentication.
+- Submit invalid or modified JWT tokens.
+- Attempt role privilege escalation.
+- Attempt access to another Owner's document.
+- Attempt unauthorized Viewer access.
+- Attempt downloading without permission.
+- Attempt access after permission expiry or revocation.
+- Test invalid file uploads.
+- Test private storage access.
+- Test SQL injection-style input.
+- Test suspended account access.
+- Verify audit-chain integrity.
 
-## 16. Conclusion
+Actual security test results must be documented after the tests are executed. A test must not be marked successful without evidence.
 
-TrustVault demonstrates a role-based approach to secure document
-management. It combines authentication, backend authorization,
-Owner-controlled sharing permissions, Viewer access restrictions,
-private file storage, activity monitoring, and hash-chain audit
-verification. The application provides a foundation that can be extended
-with stronger production security, automated testing, and cloud
-deployment.
+Refer to `THREATS.md` for the detailed threat model and security test scenarios.
 
-------------------------------------------------------------------------
+## 14. Project Limitations and Future Enhancements
 
-**Project:** TrustVault\
-**Category:** Secure Document Management Platform\
-**Frontend:** React + Vite\
-**Backend:** Python Flask\
-**Database:** MySQL
+Potential future improvements include:
+
+- Multi-factor authentication.
+- Stronger login rate limiting and account protection.
+- More advanced file content inspection and malware scanning.
+- Automated security testing in the deployment pipeline.
+- Enhanced monitoring and alerting.
+- More detailed audit reporting.
+- Automated backup and recovery procedures.
+- Additional document formats and preview capabilities.
+
+These are potential enhancements and should not be considered implemented unless they are actually developed and tested.
+
+## 15. Conclusion
+
+TrustVault provides a role-based document management platform designed to support secure document upload, controlled sharing and permission-based access.
+
+The application combines React, Flask, PostgreSQL and private cloud storage to provide separate experiences for Admin, Owner and Viewer users.
+
+Its security design focuses on authentication, role-based authorization, document-level permissions, private storage and audit logging.
+
+The project demonstrates the practical application of full-stack development, database management, cloud deployment and security-focused software engineering.
+
+The implementation and security controls should be evaluated through actual testing and deployment verification.

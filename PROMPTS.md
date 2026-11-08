@@ -1,380 +1,247 @@
 
-# PROMPTS.md
+# TrustVault – AI Usage and Prompt Documentation
 
-# TrustVault – AI Prompt Documentation
+## 1. Introduction
 
-## 1. Project Information
+TrustVault was developed with the assistance of Generative AI as a development and learning tool.
 
-**Project Name:** TrustVault – Secure Document Management Platform
+AI was used to support project planning, application architecture, frontend and backend development, database integration, debugging, deployment guidance, documentation and security analysis.
 
-**Project Type:** Full-Stack Web Application
+The development process involved providing project requirements, reviewing AI-generated suggestions, testing the implementation, identifying errors and requesting corrections.
 
-**Project Purpose:** To develop a secure document management platform that allows users to upload, store, share, and access documents based on role-based permissions.
+AI-generated code was not treated as automatically correct. Suggestions were reviewed and tested during development.
 
-**Development Approach:** AI-assisted development with human review, implementation, debugging, and testing.
+## 2. AI Usage Objectives
 
-## 2. AI Tools Used
+The main objectives of using AI were:
 
-The following AI tools may be documented if they were actually used during development:
+- Understand the project requirements.
+- Design a secure role-based document management system.
+- Plan the frontend and backend architecture.
+- Develop authentication and authorization functionality.
+- Integrate PostgreSQL database services.
+- Implement private document storage.
+- Develop Admin, Owner and Viewer dashboards.
+- Identify and resolve implementation errors.
+- Improve responsive design.
+- Prepare project documentation and security analysis.
 
-- ChatGPT – Project planning, code assistance, debugging, explanations, and documentation.
-- Google Gemini – Additional development assistance.
+## 3. Development Prompts
 
+The following are representative prompts reconstructed from the development process.
 
-## 3. Main Project Development Prompt
+### Prompt 1 – Project Understanding and Architecture
+
+**Objective:** Understand the problem statement and plan the application architecture.
 
 **Prompt:**
 
-I want to build a secure document management platform named TrustVault as a full-stack web application.
+"I am developing a secure role-based document management platform named TrustVault. The application has three roles: Admin, Owner and Viewer. Help me understand the requirements, identify the responsibilities of each role, design the system architecture and suggest a suitable technology stack. Explain the development process step by step."
 
-The application should have three types of users:
+**AI assistance:**
+- Suggested a role-based application architecture.
+- Explained frontend, backend and database responsibilities.
+- Helped organize the development into modules.
+- Identified the importance of authentication and authorization.
 
-1. Admin
-2. Owner
-3. Viewer
-
-The Admin should manage users, assign roles, activate or deactivate accounts, view document metadata, monitor security logs, and verify audit records.
-
-The Owner should upload documents, view their own documents, rename and archive documents, share documents with selected Viewers, grant or revoke permissions, set permission expiry dates, and control whether Viewers can download documents.
-
-The Viewer should access only documents shared with them. They should be able to view or download documents only when the Owner grants the required permissions.
-
-Use the following technology stack:
-
-- Frontend: React.js with Vite
-- Backend: Python Flask
-- Database: MySQL
-- Authentication: bcrypt and JWT
-- Authorization: Role-Based Access Control (RBAC)
-- Audit Logging: SHA-256 hash chaining
-
-Provide a complete project architecture, folder structure, database schema, backend APIs, frontend components, and implementation steps.
-
-Explain the code in beginner-friendly language and provide instructions to run and test the application.
-
-## 4. Project Architecture and Database Prompts
-
-### Prompt 1 – Project Structure
-
-Design a clean folder structure for TrustVault using React.js, Flask, and MySQL.
-
-Separate frontend components, pages, services, backend routes, middleware, database connections, and utility functions.
-
-Explain the purpose of every folder and important file.
+**Developer review:**
+The proposed architecture was reviewed against the project requirements before implementation.
 
 ### Prompt 2 – Database Design
 
-Design a MySQL database for TrustVault.
+**Objective:** Design the PostgreSQL database.
 
-Include tables for:
+**Prompt:**
 
-- Users
-- Roles
-- Documents
-- Document Permissions
-- Audit Logs
-- Login Attempts
+"Help me design a PostgreSQL database for TrustVault. It should support users, roles, documents, document permissions, audit logs and login attempts. Include primary keys, foreign keys, constraints and indexes. Explain the purpose of each table."
 
-Define primary keys, foreign keys, relationships, constraints, and suitable indexes.
+**AI assistance:**
+- Helped design the database tables.
+- Explained relationships between users, roles and documents.
+- Suggested constraints and indexes.
+- Explained how document sharing permissions could be represented.
 
-Explain how the database supports secure document sharing and role-based access.
+**Developer review:**
+The database structure was implemented and the connection to Neon PostgreSQL was tested.
 
-### Prompt 3 – Entity Relationship Design
+### Prompt 3 – Backend Development
 
-Explain the relationships between Admins, Owners, Viewers, Documents, Permissions, and Audit Logs.
+**Objective:** Develop backend APIs using Flask.
 
-Provide an Entity Relationship Diagram (ERD) suitable for project documentation.
+**Prompt:**
 
-## 5. Authentication and Authorization Prompts
+"Help me build a Flask backend for TrustVault using a modular folder structure. Implement authentication, role-based routes and separate modules for Admin, Owner and Viewer. Explain each file and function so I can understand the implementation."
 
-### Prompt 4 – User Registration and Login
+**AI assistance:**
+- Helped organize Flask routes and services.
+- Explained authentication middleware.
+- Assisted with database integration.
+- Helped identify and correct backend errors.
 
-Develop user registration and login APIs using Flask.
+**Developer review:**
+Backend endpoints were tested during development and integrated with the frontend.
 
-Requirements:
+### Prompt 4 – Authentication and Authorization
 
-- Hash passwords using bcrypt.
-- Validate user input.
-- Prevent duplicate email registration.
-- Generate JWT access tokens.
-- Verify account status during login.
-- Record successful and failed login attempts.
-- Restrict public registration to Owner and Viewer roles.
+**Objective:** Implement secure authentication and role-based access.
 
-Explain every function and its purpose.
+**Prompt:**
 
-### Prompt 5 – Role-Based Access Control
+"Explain how to implement JWT authentication and role-based authorization in Flask. TrustVault has Admin, Owner and Viewer roles. Users must only access APIs permitted for their roles. Explain token validation, password hashing and backend permission checks."
 
-Implement RBAC middleware in Flask.
+**AI assistance:**
+- Explained JWT authentication.
+- Assisted with role-based authorization.
+- Explained password hashing.
+- Helped structure protected routes.
 
-The system should allow:
+**Developer review:**
+Login functionality and role-specific dashboard access were tested using different user accounts.
 
-- Admin to manage users and monitor security.
-- Owner to manage their own documents.
-- Viewer to access only shared documents.
+### Prompt 5 – Document Storage and Sharing
 
-Prevent users from accessing APIs belonging to unauthorized roles.
+**Objective:** Implement private document storage and permission-based sharing.
 
-## 6. Admin Module Prompts
+**Prompt:**
 
-### Prompt 6 – Admin Dashboard
+"Help me integrate Supabase private Storage with my Flask application. Owners should upload documents and share them with registered Viewers. Sharing should support separate viewing and downloading permissions, expiry dates and permission revocation. Explain how the backend should verify permissions before returning a document."
 
-Develop an Admin Dashboard using React.
+**AI assistance:**
+- Explained private object storage.
+- Assisted with upload and download service design.
+- Explained document sharing permissions.
+- Suggested backend-side permission validation.
 
-Include:
+**Developer review:**
+The document upload and sharing workflows were integrated with the application. Permission enforcement requires independent security testing.
 
-- Dashboard statistics.
-- User management.
-- Role assignment.
-- Account activation and suspension.
-- Document metadata.
-- Security logs.
-- Audit verification.
+### Prompt 6 – Admin, Owner and Viewer Dashboards
 
-Ensure that the Admin can view document metadata without automatically receiving permission to read private document contents.
+**Objective:** Develop role-specific interfaces.
 
-## 7. Owner Module Prompts
+**Prompt:**
 
-### Prompt 7 – Owner Document Management
+"Help me develop separate React dashboards for Admin, Owner and Viewer in TrustVault. Admin should manage users, Owners should manage and share documents, and Viewers should access documents according to their permissions. Use reusable components and connect the frontend to Flask APIs."
 
-Develop Owner APIs and React components to:
+**AI assistance:**
+- Helped organize React pages and services.
+- Assisted with dashboard components.
+- Explained frontend API integration.
+- Helped resolve navigation and authentication issues.
 
-- Upload documents.
-- View uploaded documents.
-- Rename documents.
-- Archive documents.
-- Generate unique storage filenames.
-- Calculate SHA-256 file hashes.
+**Developer review:**
+The dashboards were connected to the backend and tested through the deployed application.
 
-Store uploaded files in private server-side storage.
+### Prompt 7 – Responsive Design
 
-### Prompt 8 – Document Sharing and Permissions
+**Objective:** Improve mobile and tablet compatibility.
 
-Implement document sharing functionality.
+**Prompt:**
 
-The Owner should be able to:
+"My TrustVault application works on desktop, but the dashboard layout is not displaying properly on mobile devices. Help me make the Admin, Owner and Viewer dashboards responsive using CSS media queries. Preserve existing functionality and API integration."
 
-- Share a document with a registered Viewer.
-- Grant viewing permission.
-- Grant or deny downloading permission.
-- Set an optional expiry date.
-- Revoke permissions.
+**AI assistance:**
+- Suggested responsive layout changes.
+- Helped adapt dashboard navigation for smaller screens.
+- Suggested responsive table containers.
+- Assisted with mobile and tablet styling.
 
-Ensure that all permission checks happen in the backend.
+**Developer review:**
+The frontend build was used to check for compilation errors. Responsive behavior should also be verified on actual mobile screen sizes.
 
-### Prompt 9 – Permission Management Dashboard
+### Prompt 8 – Debugging and Deployment
 
-Create an Owner interface to display:
+**Objective:** Resolve deployment and integration problems.
 
-- Viewer name and email.
-- Document access permissions.
-- Permission grant date.
-- Expiry date.
-- Active, expired, and revoked status.
+**Prompt:**
 
-Allow the Owner to revoke active permissions.
+"My TrustVault project uses React with Vite for the frontend and Flask for the backend. The frontend is deployed on Vercel and the backend on Render. Help me troubleshoot API connectivity, CORS configuration, environment variables, build errors and deployment issues without exposing secret credentials."
 
-### Prompt 10 – Owner Activity History
+**AI assistance:**
+- Explained deployment configuration.
+- Helped troubleshoot frontend build issues.
+- Assisted with API base URL configuration.
+- Explained CORS and environment variables.
+- Helped resolve routing and logout navigation problems.
 
-Create an API and frontend page that displays access activities associated with documents owned by the logged-in Owner.
+**Developer review:**
+The deployed application was tested, and the Admin, Owner and Viewer dashboards were reported to be working.
 
-Include:
+### Prompt 9 – Security Threat Analysis
 
-- Document name.
-- Viewer details.
-- Action performed.
-- Allowed or denied result.
-- Reason for the result.
-- Date and time.
+**Objective:** Identify potential attacks against the application.
 
-Restrict activity records to the logged-in Owner's documents.
+**Prompt:**
 
-## 8. Viewer Module Prompts
+"Act as a security reviewer for TrustVault, a role-based document management application. Identify threats such as unauthorized API access, JWT manipulation, IDOR, privilege escalation, unauthorized downloads, expired permissions, malicious uploads, SQL injection, private storage exposure and audit-log tampering. For each threat, suggest mitigation measures and practical security tests. Do not claim that a protection works without evidence."
 
-### Prompt 11 – Viewer Dashboard
+**AI assistance:**
+- Helped identify security threats.
+- Suggested mitigation strategies.
+- Helped prepare the threat model.
+- Suggested positive and negative security tests.
 
-Develop a Viewer Dashboard using React.
+**Developer review:**
+Threats were documented in THREATS.md. The corresponding tests must be executed and their actual results recorded.
 
-Include:
+## 4. How AI Suggestions Were Reviewed
 
-- Shared documents.
-- Document details.
-- View document functionality.
-- Download functionality when permitted.
-- Personal activity history.
+AI assistance was used as a development aid, not as a replacement for developer decisions.
 
-Viewers must not be allowed to upload, rename, delete, archive, or share documents.
+The following review process was followed:
 
-### Prompt 12 – Secure Document Access
+1. Understand the generated solution before using it.
+2. Compare suggestions with the actual project requirements.
+3. Check whether generated code fits the existing folder structure.
+4. Review database queries and API integration.
+5. Run the application and inspect errors.
+6. Test the relevant functionality.
+7. Request corrections when the suggested implementation does not work.
+8. Avoid including unverified security claims in documentation.
 
-Implement backend authorization for document viewing and downloading.
+## 5. Examples of Developer Review and Corrections
 
-Check:
+| Development area | Review performed |
+|---|---|
+| Database integration | Tested connectivity to Neon PostgreSQL. |
+| Authentication | Tested login and protected API access. |
+| Role-based access | Tested Admin, Owner and Viewer dashboards. |
+| Frontend integration | Checked communication with the Flask backend. |
+| Deployment | Resolved frontend build and deployment configuration issues. |
+| Navigation | Corrected logout and frontend routing behavior. |
+| Responsive design | Updated layouts for smaller screens. |
+| Security | Prepared threats and identified tests requiring verification. |
 
-- Whether the document exists.
-- Whether the document is archived.
-- Whether the Viewer has permission.
-- Whether viewing is enabled.
-- Whether downloading is enabled.
-- Whether permission has expired.
-- Whether permission has been revoked.
+## 6. Tools and Technologies Used
 
-Record successful and denied access attempts.
+| Tool | Purpose |
+|---|---|
+| Generative AI | Planning, explanations, coding assistance, debugging and documentation |
+| Visual Studio Code | Development environment |
+| React | Frontend development |
+| Vite | Frontend build tool |
+| Flask | Backend development |
+| Python | Backend programming |
+| PostgreSQL | Relational database |
+| Neon | Hosted PostgreSQL database |
+| Supabase Storage | Private document storage |
+| JWT | Authentication |
+| Git and GitHub | Version control |
+| Vercel | Frontend deployment |
+| Render | Backend deployment |
 
-## 9. Security and Audit Prompts
+## 7. Limitations of AI Assistance
 
-### Prompt 13 – Secure File Upload
+AI-generated suggestions can contain errors, incomplete assumptions or code that does not match the existing project.
 
-Implement secure document upload functionality.
+During development, generated suggestions were reviewed and corrected where necessary.
 
-Requirements:
+Security recommendations are not considered proof of security. Actual API behavior, storage access and permission enforcement must be tested independently.
 
-- Restrict permitted file extensions.
-- Set an upload size limit.
-- Generate unique filenames.
-- Store documents outside publicly accessible frontend folders.
-- Calculate SHA-256 file hashes.
-- Prevent path traversal.
+## 8. Conclusion
 
-Explain additional production security measures such as file-signature validation and malware scanning.
+Generative AI helped accelerate the development of TrustVault and supported the understanding of different technologies and implementation concepts.
 
-### Prompt 14 – Audit Logging
+The development process involved directing AI with project-specific requirements, reviewing generated suggestions, testing functionality and correcting errors.
 
-Design a tamper-evident audit logging system using SHA-256 hash chaining.
-
-Each audit record should contain:
-
-- User ID.
-- Document ID.
-- Action.
-- Result.
-- Reason.
-- Timestamp.
-- Previous hash.
-- Current hash.
-
-Explain how each record is connected to the previous record and how integrity verification works.
-
-### Prompt 15 – Security Verification
-
-Review the TrustWorld application for security weaknesses.
-
-Check:
-
-- Authentication.
-- Authorization.
-- Role restrictions.
-- File upload validation.
-- Private file storage.
-- Permission expiry.
-- Revoked permissions.
-- Audit logging.
-- SQL injection prevention.
-- JWT handling.
-
-Recommend security improvements and explain how to test them.
-
-## 10. Frontend Integration and Debugging Prompts
-
-### Prompt 16 – React and Flask Integration
-
-Connect the React frontend with Flask backend APIs using Axios.
-
-Implement:
-
-- API service files.
-- JWT authorization headers.
-- Login and registration.
-- Role-based dashboard navigation.
-- Protected frontend routes.
-- Error handling.
-
-Explain how React communicates with Flask.
-
-### Prompt 17 – Debugging and Error Resolution
-
-Analyze application errors using the provided code, terminal output, and browser console messages.
-
-Identify the root cause and provide corrected code without unnecessarily changing existing working modules.
-
-Explain why the error occurred and how to prevent it.
-
-### Prompt 18 – Integration Testing
-
-Prepare an end-to-end testing plan for Admin, Owner, and Viewer roles.
-
-Include positive and negative test cases for authentication, document uploads, sharing, permissions, downloads, and audit logging.
-
-Provide expected HTTP response codes and test procedures.
-
-## 11. Documentation and Hackathon Presentation Prompts
-
-### Prompt 19 – Project Documentation
-
-Prepare professional documentation for TrustVault.
-
-Include:
-
-- Abstract.
-- Problem statement.
-- Objectives.
-- Existing system.
-- Proposed system.
-- System architecture.
-- Database design.
-- Module descriptions.
-- Technology stack.
-- Security features.
-- Testing results.
-- Future enhancements.
-- Conclusion.
-
-### Prompt 20 – Hackathon Demonstration
-
-Prepare a demonstration plan for TrustVault that explains the complete application workflow.
-
-Show how Admin, Owner, and Viewer accounts interact with the platform.
-
-Highlight role-based permissions, secure document sharing, denied access attempts, and tamper-evident audit verification.
-
-Prepare possible technical interview questions and answers about the project.
-
-## 12. Human Review and Validation
-
-AI-generated suggestions and code were reviewed and adapted during implementation.
-
-The following activities require actual implementation and testing by the development team:
-
-- Database creation and configuration.
-- Backend API development.
-- Frontend integration.
-- Authentication and authorization testing.
-- Document upload and sharing tests.
-- Security verification.
-- Audit-chain integrity verification.
-- Final project demonstration.
-
-AI assistance was used as a development aid. The final implementation and testing results should be reported according to the actual application behavior.
-
-## 13. Expected Project Outcome
-
-TrustWorld aims to provide a secure document management platform with:
-
-1. Authentication with at least admin, owner, and viewer roles.
-2. Upload, organise, search, and manage documents.
-3. Per-document read and edit permissions granted to named users.
-4. Owners can grant and revoke access.
-5. Users without permission cannot read, download, edit, or delete a document.
-6. Audit uploads, downloads, edits, deletions, and permission changes.
-7. Search by name, owner, category, and date.
-8. Validate uploads.
-9. Admin view of document activity and permission changes.
-10. Automated tests proving one user cannot access another user's documents.
-
-**Project Name:** TrustVault
-
-**Project Category:** Secure Document Management System
-
-**Architecture:** React.js + Flask + MySQL
-
-**Core Security Concept:** Role-Based Access Control and Tamper-Evident Audit Logging
+The final implementation and its security must be evaluated through actual application testing rather than relying only on AI-generated explanations or code.
