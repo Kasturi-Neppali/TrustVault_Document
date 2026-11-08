@@ -72,7 +72,7 @@ function Register() {
             <div className="auth-card">
 
                 <div className="auth-heading">
-                    <h1>TrustWorld</h1>
+                    <h1>TrustVault</h1>
                     <p>Secure Document Management</p>
                 </div>
 

@@ -308,7 +308,7 @@ function OwnerDashboard() {
         <div className="owner-layout">
 
             <div className="owner-mobile-header">
-                <h2>TrustWorld</h2>
+                <h2>TrustVault</h2>
 
                 <button
                     type="button"
@@ -327,7 +327,7 @@ function OwnerDashboard() {
                 }`}
             >
                 <div className="owner-brand">
-                    <h2>TrustWorld</h2>
+                    <h2>TrustVault</h2>
                     <p className="owner-sidebar-subtitle">
                         Owner Panel
                     </p>
@@ -431,7 +431,7 @@ function OwnerDashboard() {
                         </div>
 
                         <div className="owner-welcome-card">
-                            <h2>Welcome to TrustWorld!</h2>
+                            <h2>Welcome to TrustVault!</h2>
                             <p>
                                 Upload your private documents, share them
                                 with selected Viewers, and control their

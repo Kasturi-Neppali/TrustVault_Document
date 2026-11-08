@@ -166,7 +166,7 @@ function ViewerDashboard() {
 
             {/* Mobile header */}
             <div className="viewer-mobile-header">
-                <h2>TrustWorld</h2>
+                <h2>TrustVault</h2>
 
                 <button
                     type="button"
@@ -188,7 +188,7 @@ function ViewerDashboard() {
                 }`}
             >
                 <div className="viewer-brand">
-                    <h2>TrustWorld</h2>
+                    <h2>TrustVault</h2>
 
                     <p className="viewer-sidebar-subtitle">
                         Viewer Panel

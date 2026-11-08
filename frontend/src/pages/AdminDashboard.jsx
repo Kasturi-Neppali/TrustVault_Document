@@ -208,7 +208,7 @@ function AdminDashboard() {
 
             {/* Mobile header */}
             <div className="admin-mobile-header">
-                <h2>TrustWorld</h2>
+                <h2>TrustVault</h2>
 
                 <button
                     type="button"
@@ -230,7 +230,7 @@ function AdminDashboard() {
                 }`}
             >
                 <div className="admin-brand">
-                    <h2>TrustWorld</h2>
+                    <h2>TrustVault</h2>
                     <p className="sidebar-subtitle">Admin Panel</p>
                 </div>
 
@@ -312,7 +312,7 @@ function AdminDashboard() {
                         </div>
 
                         <div className="welcome-card">
-                            <h2>Welcome to TrustWorld</h2>
+                            <h2>Welcome to TrustVault</h2>
                             <p>
                                 Monitor users, documents and security
                                 activities from one place.
