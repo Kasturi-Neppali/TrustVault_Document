@@ -79,7 +79,7 @@ function Register() {
                 <h2>Create Account</h2>
 
                 <p className="auth-subtitle">
-                    Register to start using TrustWorld
+                    Register to start using TrustVault
                 </p>
 
                 {error && (

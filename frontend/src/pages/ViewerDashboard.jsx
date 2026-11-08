@@ -281,7 +281,7 @@ function ViewerDashboard() {
                         </div>
 
                         <div className="viewer-welcome-card">
-                            <h2>Welcome to TrustWorld!</h2>
+                            <h2>Welcome to TrustVault!</h2>
 
                             <p>
                                 You can access documents that Owners
